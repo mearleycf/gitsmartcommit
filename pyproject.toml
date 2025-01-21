@@ -1,0 +1,35 @@
+[project]
+name = "gitsmartcommit"
+version = "0.1.0"
+description = "AI-enhanced Git commit tool that intelligently analyzes and groups changes"
+authors = [
+    { name = "Mike Earley" }
+]
+dependencies = [
+    "gitpython>=3.1.44",
+    "pydantic>=2.0.0",
+    "pydantic-ai>=1.0.0",
+    "rich>=13.0.0",  # For nice terminal output
+]
+requires-python = ">=3.9"
+readme = "README.md"
+license = { text = "MIT" }
+
+[project.scripts]
+git-smart-commit = "gitsmartcommit.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+]
