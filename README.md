@@ -10,7 +10,7 @@ An AI-enhanced Git commit tool that intelligently analyzes changes and creates m
 - Handles multiple commits and groups them logically
 - AI-powered analysis of code changes
 - Optional automatic pushing to remote
-- Detailed debug output showing change detection process
+- Detailed operation logging (console and file-based)
 - Smart handling of both single-file and multi-file changes
 
 ## Installation
@@ -39,11 +39,12 @@ Required dependencies:
 git smart-commit [OPTIONS]
 
 Options:
-  --path TEXT      Path to git repository (defaults to current directory)
-  --dry-run        Show proposed commits without making changes
-  --auto-push      Automatically push changes after committing
-  --commit-style   Style of commit messages to generate (conventional or simple)
-  --help          Show this message and exit
+  -p, --path TEXT      Path to git repository (defaults to current directory)
+  -d, --dry-run        Show proposed commits without making changes
+  -a, --auto-push      Automatically push changes after committing
+  -c, --commit-style   Style of commit messages to generate (conventional or simple)
+  -l, --log-file FILE  Optional file to log git operations
+  --help              Show this message and exit
 ```
 
 The tool will:
@@ -52,7 +53,8 @@ The tool will:
 3. Create meaningful commits with your chosen commit message style:
    - conventional: Uses conventional commit format (feat, fix, docs, etc.)
    - simple: Uses a simpler, more readable format
-4. Optionally push changes to remote (with --auto-push flag)
+4. Log all operations to the console and optionally to a file
+5. Optionally push changes to remote (with --auto-push flag)
 
 ## Development
 
