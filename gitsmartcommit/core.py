@@ -1,15 +1,16 @@
+"""Core functionality for git-smart-commit."""
 from pathlib import Path
 from typing import List, Dict, Optional, Callable, Any
 from dataclasses import dataclass
 import git
 from git import Repo
 from rich.console import Console
-from .prompts import RELATIONSHIP_PROMPT, COMMIT_MESSAGE_PROMPT
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext, Tool
 from .models import CommitType, FileChange, CommitUnit, RelationshipResult, CommitMessageResult
-from .commit_message import CommitMessageGenerator
+from .commit_message import CommitMessageGenerator, CommitMessageStrategy
+from .prompts import RELATIONSHIP_PROMPT, COMMIT_MESSAGE_PROMPT
 
 @dataclass
 class GitDependencies:
@@ -17,7 +18,7 @@ class GitDependencies:
     repo_path: str
 
 class ChangeAnalyzer:
-    def __init__(self, repo_path: str):
+    def __init__(self, repo_path: str, commit_strategy: Optional[CommitMessageStrategy] = None):
         self.repo = Repo(repo_path)
         self.console = Console()
         self.git_deps = GitDependencies(repo=self.repo, repo_path=repo_path)
@@ -29,7 +30,7 @@ class ChangeAnalyzer:
             system_prompt=RELATIONSHIP_PROMPT
         )
 
-        self.commit_agent = CommitMessageGenerator('anthropic:claude-3-5-sonnet-latest')
+        self.commit_agent = CommitMessageGenerator(strategy=commit_strategy)
 
     def _validate_repo(self):
         """Validate repository state and raise appropriate errors."""
