@@ -6,7 +6,7 @@ An AI-enhanced Git commit tool that intelligently analyzes changes and creates m
 
 - Automatically groups related changes across files into logical units
 - Generates meaningful commit messages explaining WHY changes were made
-- Uses conventional commit format (feat, fix, docs, style, refactor, test, chore)
+- Supports multiple commit message styles (conventional and simple)
 - Handles multiple commits and groups them logically
 - AI-powered analysis of code changes
 - Optional automatic pushing to remote
@@ -42,13 +42,16 @@ Options:
   --path TEXT      Path to git repository (defaults to current directory)
   --dry-run        Show proposed commits without making changes
   --auto-push      Automatically push changes after committing
+  --commit-style   Style of commit messages to generate (conventional or simple)
   --help          Show this message and exit
 ```
 
 The tool will:
 1. Analyze all changes in your repository (with helpful debug output)
 2. Group related changes together
-3. Create meaningful commits with proper conventional commit messages
+3. Create meaningful commits with your chosen commit message style:
+   - conventional: Uses conventional commit format (feat, fix, docs, etc.)
+   - simple: Uses a simpler, more readable format
 4. Optionally push changes to remote (with --auto-push flag)
 
 ## Development
