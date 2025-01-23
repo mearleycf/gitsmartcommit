@@ -11,6 +11,7 @@ An AI-enhanced Git commit tool that intelligently analyzes changes and creates m
 - AI-powered analysis of code changes
 - Optional automatic pushing to remote
 - Detailed debug output showing change detection process
+- Smart handling of both single-file and multi-file changes
 
 ## Installation
 
