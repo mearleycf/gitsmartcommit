@@ -1,0 +1,3 @@
+[tools]
+python = { version = "latest", virtualenv = ".venv" }
+node = "latest"

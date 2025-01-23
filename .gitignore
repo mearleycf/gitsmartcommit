@@ -51,3 +51,8 @@ htmlcov/
 
 # Local development
 .python-version
+
+# Logs
+logs/
+!logs/archive_logs.py
+!logs/split_logs.py
