@@ -10,6 +10,7 @@ An AI-enhanced Git commit tool that intelligently analyzes changes and creates m
 - Handles multiple commits and groups them logically
 - AI-powered analysis of code changes
 - Optional automatic pushing to remote
+- Detailed debug output showing change detection process
 
 ## Installation
 
@@ -44,7 +45,7 @@ Options:
 ```
 
 The tool will:
-1. Analyze all changes in your repository
+1. Analyze all changes in your repository (with helpful debug output)
 2. Group related changes together
 3. Create meaningful commits with proper conventional commit messages
 4. Optionally push changes to remote (with --auto-push flag)
