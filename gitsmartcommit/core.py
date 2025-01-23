@@ -50,6 +50,26 @@ class ChangeAnalyzer:
             task = progress.add_task("Analyzing repository changes...", total=None)
             changes = self._collect_changes()
             
+            # If there's only one file changed, no need for relationship analysis
+            if len(changes) == 1:
+                task = progress.add_task("Generating commit message...", total=None)
+                result = await self.commit_agent.generate_commit_message(changes, self.repo)
+                if not result:
+                    return []
+                    
+                commit_analysis = result.data if hasattr(result, 'data') else result
+                body = commit_analysis.reasoning if commit_analysis.reasoning else ""
+                
+                commit_unit = CommitUnit(
+                    type=commit_analysis.commit_type,
+                    scope=commit_analysis.scope,
+                    description=commit_analysis.description,
+                    files=commit_analysis.related_files,
+                    body=body
+                )
+                progress.update(task, completed=True)
+                return [commit_unit]
+            
             # Use AI to analyze relationships and group changes
             task = progress.add_task("Grouping related changes...", total=None)
             file_tuples = [(change.path, change.content_diff) for change in changes]

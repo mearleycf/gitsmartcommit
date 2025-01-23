@@ -56,3 +56,6 @@ htmlcov/
 logs/
 !logs/archive_logs.py
 !logs/split_logs.py
+
+# Codefetch
+codefetch/
