@@ -5,6 +5,8 @@ from rich.console import Console
 from pathlib import Path
 from .core import ChangeAnalyzer, GitCommitter
 from .commit_message import ConventionalCommitStrategy, SimpleCommitStrategy
+from .observers import ConsoleLogObserver, FileLogObserver
+from typing import Optional
 
 console = Console()
 
@@ -35,7 +37,13 @@ console = Console()
     default='conventional',
     help="Style of commit messages to generate"
 )
-def main(path: Path, dry_run: bool, auto_push: bool, commit_style: str):
+@click.option(
+    '-l',
+    '--log-file',
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Optional file to log git operations"
+)
+def main(path: Path, dry_run: bool, auto_push: bool, commit_style: str, log_file: Optional[Path]):
     """
     Intelligent Git commit tool that analyzes changes and creates meaningful commits.
     
@@ -63,10 +71,16 @@ def main(path: Path, dry_run: bool, auto_push: bool, commit_style: str):
         
         if not dry_run:
             committer = GitCommitter(repo_path)
+            
+            # Add observers
+            committer.add_observer(ConsoleLogObserver(console))
+            if log_file:
+                committer.add_observer(FileLogObserver(str(log_file)))
+            
             success = asyncio.run(committer.commit_changes(commit_units))
             
             if success and auto_push:
-                committer.push_changes()
+                success = asyncio.run(committer.push_changes())
     except KeyboardInterrupt:
         console.print("\n[yellow]Operation cancelled by user[/yellow]")
     except Exception as e:

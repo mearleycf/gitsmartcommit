@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext, Tool
 from .models import CommitType, FileChange, CommitUnit, RelationshipResult, CommitMessageResult
 from .commit_message import CommitMessageGenerator, CommitMessageStrategy
+from .observers import GitOperationObserver
 from .prompts import RELATIONSHIP_PROMPT, COMMIT_MESSAGE_PROMPT
 
 @dataclass
@@ -165,6 +166,25 @@ class GitCommitter:
     def __init__(self, repo_path: str):
         self.repo = Repo(repo_path)
         self.console = Console()
+        self.observers: List[GitOperationObserver] = []
+
+    def add_observer(self, observer: GitOperationObserver) -> None:
+        """Add an observer to be notified of git operations."""
+        self.observers.append(observer)
+
+    def remove_observer(self, observer: GitOperationObserver) -> None:
+        """Remove an observer from the notification list."""
+        self.observers.remove(observer)
+
+    async def notify_commit_created(self, commit_unit: CommitUnit) -> None:
+        """Notify all observers that a commit was created."""
+        for observer in self.observers:
+            await observer.on_commit_created(commit_unit)
+
+    async def notify_push_completed(self, success: bool) -> None:
+        """Notify all observers that a push operation completed."""
+        for observer in self.observers:
+            await observer.on_push_completed(success)
 
     async def commit_changes(self, commit_units: List[CommitUnit]) -> bool:
         """Create commits for each commit unit."""
@@ -199,11 +219,12 @@ class GitCommitter:
                 
                 # Create commit
                 self.repo.index.commit(message)
+                await self.notify_commit_created(unit)
                 progress.advance(task)
             
             return True
 
-    def push_changes(self) -> bool:
+    async def push_changes(self) -> bool:
         """Push commits to remote repository."""
         with Progress(
             SpinnerColumn(),
@@ -213,9 +234,17 @@ class GitCommitter:
             task = progress.add_task("Pushing changes to remote...", total=None)
             
             try:
-                self.repo.remote().push()
-                progress.update(task, completed=True)
-                return True
+                # Check if remote exists
+                if not self.repo.remotes:
+                    self.console.print("[red]No remote repository configured[/red]")
+                    success = False
+                else:
+                    self.repo.remote().push()
+                    progress.update(task, completed=True)
+                    success = True
             except git.GitCommandError as e:
                 self.console.print(f"[red]Failed to push changes: {str(e)}[/red]")
-                return False
+                success = False
+
+            await self.notify_push_completed(success)
+            return success

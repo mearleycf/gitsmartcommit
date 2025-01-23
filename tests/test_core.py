@@ -9,9 +9,14 @@ from gitsmartcommit.core import (
     ChangeAnalyzer, GitCommitter, CommitUnit, CommitType, FileChange
 )
 from gitsmartcommit.models import RelationshipResult, CommitMessageResult
-from gitsmartcommit.commit_message import CommitMessageGenerator
+from gitsmartcommit.commit_message import (
+    CommitMessageGenerator,
+    CommitMessageStrategy,
+    ConventionalCommitStrategy,
+    SimpleCommitStrategy,
+)
 from pydantic_ai import RunContext, Agent, Tool
-from gitsmartcommit.commit_message.strategy import CommitMessageStrategy
+from gitsmartcommit.observers import GitOperationObserver, FileLogObserver
 
 @pytest.fixture
 def temp_git_repo():
@@ -177,3 +182,131 @@ async def test_generate_commit_message(temp_git_repo):
 
         # Verify the strategy was called correctly
         mock_strategy.generate_message.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_git_committer_observers(temp_git_repo):
+    # Create a mock observer
+    mock_observer = Mock(spec=GitOperationObserver)
+    mock_observer.on_commit_created = AsyncMock()
+    mock_observer.on_push_completed = AsyncMock()
+
+    # Create a test commit unit
+    commit_unit = CommitUnit(
+        type=CommitType.FEAT,
+        scope="test",
+        description="test commit",
+        files=["test.txt"],
+        body="Test commit body"
+    )
+    
+    # Make a change
+    test_file = Path(temp_git_repo) / "test.txt"
+    test_file.write_text("Modified content")
+    
+    # Create committer and add observer
+    committer = GitCommitter(temp_git_repo)
+    committer.add_observer(mock_observer)
+    
+    # Test commit
+    success = await committer.commit_changes([commit_unit])
+    assert success is True
+    mock_observer.on_commit_created.assert_called_once_with(commit_unit)
+    
+    # Test push (should fail since there's no remote)
+    success = await committer.push_changes()
+    assert success is False
+    mock_observer.on_push_completed.assert_called_once_with(False)
+    
+    # Test removing observer
+    committer.remove_observer(mock_observer)
+    assert mock_observer not in committer.observers
+
+@pytest.mark.asyncio
+async def test_file_log_observer(temp_git_repo, tmp_path):
+    # Create a log file
+    log_file = tmp_path / "git.log"
+    observer = FileLogObserver(str(log_file))
+    
+    # Create a test commit unit
+    commit_unit = CommitUnit(
+        type=CommitType.FEAT,
+        scope="test",
+        description="test commit",
+        files=["test.txt"],
+        body="Test commit body"
+    )
+    
+    # Test logging commit
+    await observer.on_commit_created(commit_unit)
+    assert log_file.exists()
+    content = log_file.read_text()
+    assert "COMMIT: feat(test): test commit" in content
+    assert "Files: test.txt" in content
+    assert "Body: Test commit body" in content
+    
+    # Test logging push
+    await observer.on_push_completed(True)
+    content = log_file.read_text()
+    assert "PUSH: Successfully pushed changes to remote" in content
+    
+    await observer.on_push_completed(False)
+    content = log_file.read_text()
+    assert "PUSH: Failed to push changes to remote" in content
+
+@pytest.mark.asyncio
+async def test_simple_commit_strategy(temp_git_repo):
+    # Create test changes
+    test_file = Path(temp_git_repo) / "test.txt"
+    test_file.write_text("Modified content")
+    
+    # Create a FileChange object
+    change = FileChange(
+        path="test.txt",
+        status="modified",
+        content_diff="Modified content",
+        is_staged=False
+    )
+    
+    # Create the strategy
+    strategy = SimpleCommitStrategy()
+    
+    # Generate a message
+    result = await strategy.generate_message([change], "Current branch: main")
+    
+    # Verify the result
+    assert result is not None
+    assert isinstance(result, CommitMessageResult)
+    assert result.commit_type in CommitType
+    assert len(result.description) <= 50  # Subject line length requirement
+    assert not result.description.endswith('.')  # No period at end
+    assert result.reasoning  # Should have a body explaining why
+
+@pytest.mark.asyncio
+async def test_conventional_commit_strategy(temp_git_repo):
+    # Create test changes
+    test_file = Path(temp_git_repo) / "test.txt"
+    test_file.write_text("Modified content")
+    
+    # Create a FileChange object
+    change = FileChange(
+        path="test.txt",
+        status="modified",
+        content_diff="Modified content",
+        is_staged=False
+    )
+    
+    # Create the strategy
+    strategy = ConventionalCommitStrategy()
+    
+    # Generate a message
+    result = await strategy.generate_message([change], "Current branch: main")
+    
+    # Verify the result
+    assert result is not None
+    assert isinstance(result, CommitMessageResult)
+    assert result.commit_type in CommitType
+    assert result.scope is not None
+    assert len(result.description) <= 50
+    assert ':' in f"{result.commit_type.value}({result.scope}): {result.description}"
+    assert not result.description.endswith('.')
+    assert result.reasoning
