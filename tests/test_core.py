@@ -11,6 +11,7 @@ from gitsmartcommit.core import (
 from gitsmartcommit.models import RelationshipResult, CommitMessageResult
 from gitsmartcommit.commit_message import CommitMessageGenerator
 from pydantic_ai import RunContext, Agent, Tool
+from gitsmartcommit.commit_message.strategy import CommitMessageStrategy
 
 @pytest.fixture
 def temp_git_repo():
@@ -148,23 +149,22 @@ async def test_generate_commit_message(temp_git_repo):
         related_files=["test.txt"]
     )
 
-    # Mock both agents
-    with patch.object(Agent, 'run', new_callable=AsyncMock) as mock_relationship_run, \
-         patch.object(CommitMessageGenerator, 'generate_commit_message', new_callable=AsyncMock) as mock_commit_run:
-        
+    # Mock the strategy
+    mock_strategy = Mock(spec=CommitMessageStrategy)
+    mock_strategy.generate_message = AsyncMock(return_value=mock_commit)
+
+    # Mock relationship agent
+    with patch.object(Agent, 'run', new_callable=AsyncMock) as mock_relationship_run:
         # Set up relationship mock
         mock_relationship_response = Mock()
         mock_relationship_response.data = mock_grouping
         mock_relationship_run.return_value = mock_relationship_response
 
-        # Set up commit message mock
-        mock_commit_run.return_value = mock_commit
-
         # Create a test change
         test_file = Path(temp_git_repo) / "test.txt"
         test_file.write_text("Test content")
 
-        analyzer = ChangeAnalyzer(temp_git_repo)
+        analyzer = ChangeAnalyzer(temp_git_repo, commit_strategy=mock_strategy)
         changes = analyzer._collect_changes()
         assert len(changes) > 0
 
@@ -174,3 +174,6 @@ async def test_generate_commit_message(temp_git_repo):
         assert commit_units[0].scope == "test"
         assert commit_units[0].description == "test changes"
         assert commit_units[0].body == "Test reasoning"
+
+        # Verify the strategy was called correctly
+        mock_strategy.generate_message.assert_called_once()
