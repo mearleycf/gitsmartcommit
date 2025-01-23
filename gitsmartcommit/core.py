@@ -149,7 +149,16 @@ class GitCommitter:
             for unit in commit_units:
                 # Stage files for this commit
                 for file_path in unit.files:
-                    self.repo.index.add([file_path])
+                    file_exists = Path(self.repo.working_dir) / file_path
+                    if file_exists.exists():
+                        self.repo.index.add([file_path])
+                    else:
+                        # Handle deleted files
+                        try:
+                            self.repo.index.remove([file_path])
+                        except git.exc.GitCommandError:
+                            # If the file is already staged for deletion, continue
+                            pass
                 
                 # Create commit message
                 message = f"{unit.type.value}"
