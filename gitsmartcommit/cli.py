@@ -39,13 +39,14 @@ def main(path: Path, dry_run: bool, auto_push: bool):
         analyzer = ChangeAnalyzer(repo_path)
         commit_units = asyncio.run(analyzer.analyze_changes())
         
-        if dry_run:
-            for unit in commit_units:
-                console.print(f"[green]{unit.type.value}({unit.scope}): {unit.description}[/green]")
-                console.print(f"Files: {', '.join(unit.files)}")
-                if unit.body:
-                    console.print(f"Body: {unit.body}\n")
-        else:
+        # Always show the commit messages
+        for unit in commit_units:
+            console.print(f"[green]{unit.type.value}({unit.scope}): {unit.description}[/green]")
+            console.print(f"Files: {', '.join(unit.files)}")
+            if unit.body:
+                console.print(f"Body: {unit.body}\n")
+        
+        if not dry_run:
             committer = GitCommitter(repo_path)
             success = asyncio.run(committer.commit_changes(commit_units))
             

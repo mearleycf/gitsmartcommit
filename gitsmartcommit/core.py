@@ -96,10 +96,13 @@ Files to analyze:
     def _collect_changes(self) -> List[FileChange]:
         """Collect all changes in the repository."""
         changes = []
+        print("Collecting changes...")
         
         # Get staged changes
+        print("Getting staged changes...")
         diff_staged = self.repo.index.diff(self.repo.head.commit)
         for diff in diff_staged:
+            print(f"Found staged change: {diff.a_path or diff.b_path}")
             content = diff.diff.decode('utf-8') if isinstance(diff.diff, bytes) else str(diff.diff)
             changes.append(FileChange(
                 path=diff.a_path or diff.b_path,
@@ -109,8 +112,10 @@ Files to analyze:
             ))
         
         # Get unstaged changes
+        print("Getting unstaged changes...")
         diff_unstaged = self.repo.index.diff(None)
         for diff in diff_unstaged:
+            print(f"Found unstaged change: {diff.a_path or diff.b_path}")
             content = diff.diff.decode('utf-8') if isinstance(diff.diff, bytes) else str(diff.diff)
             changes.append(FileChange(
                 path=diff.a_path or diff.b_path,
@@ -120,7 +125,9 @@ Files to analyze:
             ))
         
         # Get untracked files
+        print("Getting untracked files...")
         for file_path in self.repo.untracked_files:
+            print(f"Found untracked file: {file_path}")
             with open(Path(self.repo.working_dir) / file_path, 'r') as f:
                 content = f.read()
             changes.append(FileChange(
@@ -129,7 +136,8 @@ Files to analyze:
                 content_diff=content,
                 is_staged=False
             ))
-            
+        
+        print(f"Total changes found: {len(changes)}")
         return changes
 
 class GitCommitter:
