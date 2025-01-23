@@ -59,3 +59,5 @@ logs/
 
 # Codefetch
 codefetch/
+._codebase_digest.md
+analysis_results.md
