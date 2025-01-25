@@ -359,15 +359,19 @@ class MergeCommand(GitCommand):
                 # Check local branches
                 self.repo.refs[f"refs/heads/{self.main_branch}"]
                 main_exists = True
+                self.console.print(f"[green]Found local branch '{self.main_branch}'[/green]")
             except (IndexError, KeyError):
                 try:
                     # Check remote branches
                     remote = self.repo.remote()
                     remote_refs = [ref.name.split('/')[-1] for ref in remote.refs]
+                    self.console.print(f"[dim]Available remote branches: {', '.join(remote_refs)}[/dim]")
+                    
                     if self.main_branch in remote_refs:
                         # Remote branch exists, create local tracking branch
                         self.repo.git.checkout("-b", self.main_branch, f"{remote.name}/{self.main_branch}")
                         main_exists = True
+                        self.console.print(f"[green]Found remote branch '{self.main_branch}'[/green]")
                 except Exception as e:
                     self.console.print(f"[yellow]Warning checking remote branches: {str(e)}[/yellow]")
             
