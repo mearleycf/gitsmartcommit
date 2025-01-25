@@ -355,23 +355,35 @@ class MergeCommand(GitCommand):
             
             # Check if main branch exists (either locally or remotely)
             main_exists = False
+            
+            # First check if the branch exists locally
             try:
-                # Check local branches
-                self.repo.refs[f"refs/heads/{self.main_branch}"]
-                main_exists = True
-                self.console.print(f"[green]Found local branch '{self.main_branch}'[/green]")
-            except (IndexError, KeyError):
+                # List all local branches
+                local_branches = [ref.name.split('/')[-1] for ref in self.repo.refs if ref.name.startswith('refs/heads/')]
+                if self.main_branch in local_branches:
+                    main_exists = True
+                    self.console.print(f"[green]Found local branch '{self.main_branch}'[/green]")
+            except Exception as e:
+                self.console.print(f"[yellow]Warning checking local branches: {str(e)}[/yellow]")
+            
+            # If not found locally, check remote
+            if not main_exists:
                 try:
-                    # Check remote branches
                     remote = self.repo.remote()
                     remote_refs = [ref.name.split('/')[-1] for ref in remote.refs]
                     self.console.print(f"[dim]Available remote branches: {', '.join(remote_refs)}[/dim]")
                     
                     if self.main_branch in remote_refs:
-                        # Remote branch exists, create local tracking branch
-                        self.repo.git.checkout("-b", self.main_branch, f"{remote.name}/{self.main_branch}")
-                        main_exists = True
-                        self.console.print(f"[green]Found remote branch '{self.main_branch}'[/green]")
+                        try:
+                            # Try to check out the remote branch
+                            self.repo.git.checkout(self.main_branch)
+                            main_exists = True
+                            self.console.print(f"[green]Found remote branch '{self.main_branch}'[/green]")
+                        except Exception:
+                            # If checkout fails, try to create tracking branch
+                            self.repo.git.checkout("-b", self.main_branch, f"{remote.name}/{self.main_branch}")
+                            main_exists = True
+                            self.console.print(f"[green]Created tracking branch for '{self.main_branch}'[/green]")
                 except Exception as e:
                     self.console.print(f"[yellow]Warning checking remote branches: {str(e)}[/yellow]")
             

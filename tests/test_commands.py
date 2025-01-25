@@ -177,7 +177,11 @@ async def test_merge_command_success(mock_repo, mock_console):
     """Test successful merge operation."""
     # Setup
     mock_repo.active_branch.name = "feature"
-    mock_repo.refs = {"refs/heads/main": Mock()}
+    
+    # Mock refs for branch detection
+    main_ref = Mock()
+    main_ref.name = "refs/heads/main"
+    mock_repo.refs = [main_ref]
     mock_repo.head.commit.hexsha = "merge_commit_hash"
     
     # Mock successful merge
@@ -205,7 +209,8 @@ async def test_merge_command_nonexistent_main_branch(mock_repo, mock_console):
     """Test merge operation with nonexistent main branch."""
     # Setup
     mock_repo.active_branch.name = "feature"
-    mock_repo.refs = {}  # No main branch
+    mock_repo.refs = []  # No branches
+    mock_repo.remote.return_value.refs = []  # No remote branches
     
     # Create command
     command = MergeCommand(mock_repo, "main", mock_console)
@@ -224,7 +229,11 @@ async def test_merge_command_merge_conflict(mock_repo, mock_console):
     """Test merge operation with merge conflict."""
     # Setup
     mock_repo.active_branch.name = "feature"
-    mock_repo.refs = {"refs/heads/main": Mock()}
+    
+    # Mock refs for branch detection
+    main_ref = Mock()
+    main_ref.name = "refs/heads/main"
+    mock_repo.refs = [main_ref]
     mock_repo.git.merge.side_effect = git.GitCommandError("merge", "merge conflict")
     
     # Create command
