@@ -1,82 +1,110 @@
 # GitSmartCommit
 
-An AI-enhanced Git commit tool that intelligently analyzes changes and creates meaningful commits.
+A smart Git commit assistant that helps you create better commits by analyzing your changes and suggesting logical commit units with appropriate commit messages.
 
 ## Features
 
-- Automatically groups related changes across files into logical units
-- Generates meaningful commit messages explaining WHY changes were made
-- Supports multiple commit message styles (conventional and simple)
-- Handles multiple commits and groups them logically
-- AI-powered analysis of code changes
-- Optional automatic pushing to remote
-- Detailed operation logging (console and file-based)
-- Smart handling of both single-file and multi-file changes
+- Analyzes repository changes and groups them into logical units
+- Generates conventional commit messages
+- Supports multiple commit message formats
+- Validates commit messages against best practices
+- Provides undo functionality for git operations
+- Supports logging and notifications for git operations
 
 ## Installation
 
-Using uv:
+Currently, GitSmartCommit needs to be installed from source:
 
 ```bash
-uv venv
-source .venv/bin/activate  # or equivalent for your shell
-uv pip install -e .
-```
+# Clone the repository
+git clone https://github.com/yourusername/gitsmartcommit.git
+cd gitsmartcommit
 
-Required dependencies:
-- Python >= 3.9
-- gitpython >= 3.1.44
-- pydantic >= 2.0.0
-- pydantic-ai >= 0.0.19
-- rich >= 13.0.0
-- click >= 8.0.0
-- asyncio >= 3.4.3
+# Create a virtual environment (optional but recommended)
+python -m venv venv
+
+# Activate the virtual environment:
+# For bash/zsh:
+source venv/bin/activate
+# For fish:
+source venv/bin/activate.fish
+# For Windows Command Prompt:
+venv\Scripts\activate.bat
+# For Windows PowerShell:
+venv\Scripts\Activate.ps1
+
+# Install the package in editable mode with development dependencies
+pip install -e ".[dev]"
+```
 
 ## Usage
 
-```bash
-# From any git repository
-git smart-commit [OPTIONS]
+After installation, you can use the `gitsmartcommit` command in any git repository:
 
-Options:
-  -p, --path TEXT      Path to git repository (defaults to current directory)
-  -d, --dry-run        Show proposed commits without making changes
-  -a, --auto-push      Automatically push changes after committing
-  -c, --commit-style   Style of commit messages to generate (conventional or simple)
-  -l, --log-file FILE  Optional file to log git operations
-  --help              Show this message and exit
+```bash
+# Basic usage (analyzes current directory)
+gitsmartcommit
+
+# Get help and see all available options
+gitsmartcommit --help
+```
+
+### Options
+
+```bash
+# Specify repository path (defaults to current directory)
+gitsmartcommit -p /path/to/repo
+gitsmartcommit --path /path/to/repo
+
+# Preview commits without making changes
+gitsmartcommit -d
+gitsmartcommit --dry-run
+
+# Automatically push changes after committing
+gitsmartcommit -a
+gitsmartcommit --auto-push
+
+# Choose commit message style (conventional or simple)
+gitsmartcommit -c simple (or -c conventional)
+gitsmartcommit --commit-style simple (or --commit-style conventional)
+
+# Log operations to a file
+gitsmartcommit -l git_operations.log
+gitsmartcommit --log-file git_operations.log
 ```
 
 The tool will:
-1. Analyze all changes in your repository (with helpful debug output)
-2. Group related changes together
-3. Create meaningful commits with your chosen commit message style:
-   - conventional: Uses conventional commit format (feat, fix, docs, etc.)
-   - simple: Uses a simpler, more readable format
-4. Log all operations to the console and optionally to a file
-5. Optionally push changes to remote (with --auto-push flag)
 
-## Development
+1. Analyze your repository changes
+2. Group related changes into logical commits
+3. Generate meaningful commit messages
+4. Create the commits (unless --dry-run is used)
+5. Optionally push changes to remote (if --auto-push is used)
 
-Setup development environment:
+## Architecture
 
-```bash
-# Create and activate virtual environment
-uv venv
-source .venv/bin/activate
+GitSmartCommit uses several design patterns to maintain a clean and extensible codebase:
 
-# Install development dependencies
-uv pip install -e ".[dev]"
+- Strategy Pattern for commit message generation
+- Observer Pattern for git operation notifications
+- Factory Pattern for creating AI agents
+- Chain of Responsibility for commit message validation
+- Command Pattern for git operations
 
-# Development dependencies include:
-# - pytest >= 7.0.0
-# - pytest-asyncio >= 0.21.0
-# - pytest-cov >= 4.0.0
+For more details about the design patterns used, see [Design Patterns Documentation](docs/design_patterns.md).
 
-# Run tests
-pytest
-```
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Run tests (`pytest`)
+5. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+When adding new features, please refer to the [Design Patterns Documentation](docs/design_patterns.md) to maintain consistency with the existing architecture.
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
