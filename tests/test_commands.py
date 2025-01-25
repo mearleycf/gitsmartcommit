@@ -1,13 +1,33 @@
 """Tests for git commands."""
 import pytest
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import Mock, AsyncMock, call
+import git
 from git import Repo
+from rich.console import Console
 
-from gitsmartcommit.commands import GitCommand, CommitCommand, PushCommand
+from gitsmartcommit.commands import GitCommand, CommitCommand, PushCommand, MergeCommand
 from gitsmartcommit.models import CommitType, CommitUnit
 from gitsmartcommit.observers import GitOperationObserver
 from .test_core import temp_git_repo
+
+@pytest.fixture
+def mock_console():
+    """Mock console for testing."""
+    console = Mock(spec=Console)
+    console.print = Mock()
+    return console
+
+@pytest.fixture
+def mock_repo():
+    """Mock git repo for testing."""
+    repo = Mock(spec=Repo)
+    repo.git = Mock()
+    repo.remote.return_value = Mock()
+    repo.head = Mock()
+    repo.active_branch = Mock()
+    repo.index = Mock()
+    return repo
 
 @pytest.mark.asyncio
 async def test_commit_command(temp_git_repo):
@@ -150,4 +170,93 @@ async def test_command_history(temp_git_repo):
     # Verify only first commit remains
     commits = list(repo.iter_commits())
     assert len(commits) == 2  # Initial + 1 commit
-    assert commits[0].message.startswith("feat(test): first commit") 
+    assert commits[0].message.startswith("feat(test): first commit")
+
+@pytest.mark.asyncio
+async def test_merge_command_success(mock_repo, mock_console):
+    """Test successful merge operation."""
+    # Setup
+    mock_repo.active_branch.name = "feature"
+    mock_repo.refs = {"refs/heads/main": Mock()}
+    mock_repo.head.commit.hexsha = "merge_commit_hash"
+    
+    # Mock successful merge
+    mock_repo.git.merge.return_value = "Merge successful"
+    mock_repo.remote.return_value.push.return_value = None
+    
+    # Create command
+    command = MergeCommand(mock_repo, "main", mock_console)
+    
+    # Execute
+    success = await command.execute()
+    
+    # Assert
+    assert success
+    assert command.original_branch == "feature"
+    assert command.merge_commit_hash == "merge_commit_hash"
+    
+    # Verify the sequence of operations
+    assert mock_repo.git.checkout.call_args_list == [call("main"), call("feature")]
+    assert mock_repo.git.merge.call_args_list == [call("feature")]
+    assert mock_repo.remote.return_value.push.call_count == 1
+
+@pytest.mark.asyncio
+async def test_merge_command_nonexistent_main_branch(mock_repo, mock_console):
+    """Test merge operation with nonexistent main branch."""
+    # Setup
+    mock_repo.active_branch.name = "feature"
+    mock_repo.refs = {}  # No main branch
+    
+    # Create command
+    command = MergeCommand(mock_repo, "main", mock_console)
+    
+    # Execute
+    success = await command.execute()
+    
+    # Assert
+    assert not success
+    mock_repo.git.checkout.assert_not_called()
+    mock_repo.git.merge.assert_not_called()
+    mock_repo.remote.return_value.push.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_merge_command_merge_conflict(mock_repo, mock_console):
+    """Test merge operation with merge conflict."""
+    # Setup
+    mock_repo.active_branch.name = "feature"
+    mock_repo.refs = {"refs/heads/main": Mock()}
+    mock_repo.git.merge.side_effect = git.GitCommandError("merge", "merge conflict")
+    
+    # Create command
+    command = MergeCommand(mock_repo, "main", mock_console)
+    
+    # Execute
+    success = await command.execute()
+    
+    # Assert
+    assert not success
+    
+    # Verify the sequence of operations
+    assert mock_repo.git.checkout.call_args_list == [call("main"), call("feature")]
+    mock_repo.git.merge.assert_called_once_with("feature")
+    mock_repo.remote.return_value.push.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_merge_command_undo(mock_repo, mock_console):
+    """Test undoing a merge operation."""
+    # Setup
+    mock_repo.active_branch.name = "feature"
+    command = MergeCommand(mock_repo, "main", mock_console)
+    command.original_branch = "feature"
+    command.merge_commit_hash = "merge_commit_hash"
+    
+    # Execute undo
+    success = await command.undo()
+    
+    # Assert
+    assert success
+    
+    # Verify the sequence of operations
+    assert mock_repo.git.checkout.call_args_list == [call("main"), call("feature")]
+    mock_repo.git.reset.assert_called_once_with("--hard", "merge_commit_hash^")
+    mock_repo.remote.return_value.push.assert_called_once_with(force=True) 

@@ -305,4 +305,130 @@ class PushCommand(GitCommand):
             
         except Exception as e:
             self.console.print(f"[red]Failed to undo push: {str(e)}[/red]")
+            return False
+
+class MergeCommand(GitCommand):
+    """Command for merging changes into the main branch.
+    
+    This command handles:
+    1. Storing the current branch name
+    2. Checking out the main branch
+    3. Merging the feature branch
+    4. Pushing the merged changes
+    5. Restoring the original branch (on undo)
+    
+    Attributes:
+        main_branch (str): Name of the main branch to merge into
+        original_branch (str): Name of the branch we were on before merging
+        merge_commit_hash (Optional[str]): Hash of the merge commit
+    """
+    
+    def __init__(self, repo: Repo, main_branch: str, console: Optional[Console] = None):
+        """Initialize the merge command.
+        
+        Args:
+            repo: The git repository to operate on
+            main_branch: Name of the main branch to merge into
+            console: Optional Rich console for output
+        """
+        super().__init__(repo, console)
+        self.main_branch = main_branch
+        self.original_branch = None
+        self.merge_commit_hash = None
+    
+    async def execute(self) -> bool:
+        """Merge the current branch into the main branch.
+        
+        This method will:
+        1. Store the current branch name
+        2. Check out the main branch
+        3. Merge the feature branch
+        4. Push the merged changes
+        5. Notify observers
+        
+        Returns:
+            bool: True if the merge was successful, False otherwise
+        """
+        try:
+            # Store current branch
+            self.original_branch = self.repo.active_branch.name
+            
+            # Check if main branch exists
+            try:
+                # Try to get the main branch reference
+                self.repo.refs[f"refs/heads/{self.main_branch}"]
+            except (IndexError, KeyError):
+                self.console.print(f"[red]Main branch '{self.main_branch}' does not exist[/red]")
+                return False
+            
+            try:
+                # Check out main branch
+                self.repo.git.checkout(self.main_branch)
+                
+                # Merge the feature branch
+                self.repo.git.merge(self.original_branch)
+                self.merge_commit_hash = self.repo.head.commit.hexsha
+                
+                # Push the merged changes
+                remote = self.repo.remote()
+                remote.push()
+                
+                # Notify observers
+                for observer in self.observers:
+                    await observer.on_merge_completed(True, self.original_branch, self.main_branch)
+                
+                # Restore original branch
+                self.repo.git.checkout(self.original_branch)
+                
+                return True
+                
+            except Exception as e:
+                self.console.print(f"[red]Failed to merge changes: {str(e)}[/red]")
+                # Try to restore original branch on failure
+                try:
+                    if self.original_branch:
+                        self.repo.git.checkout(self.original_branch)
+                except:
+                    pass
+                return False
+                
+        except Exception as e:
+            self.console.print(f"[red]Failed to merge changes: {str(e)}[/red]")
+            return False
+    
+    async def undo(self) -> bool:
+        """Undo the merge by resetting main branch and restoring original branch.
+        
+        This method will:
+        1. Check out main branch
+        2. Reset to before merge
+        3. Force push the reset
+        4. Restore original branch
+        
+        Returns:
+            bool: True if the merge was undone successfully, False otherwise
+        """
+        if not self.merge_commit_hash or not self.original_branch:
+            self.console.print("[yellow]No merge to undo[/yellow]")
+            return False
+        
+        try:
+            # Check out main branch
+            self.repo.git.checkout(self.main_branch)
+            
+            # Reset to before merge
+            self.repo.git.reset('--hard', f'{self.merge_commit_hash}^')
+            
+            # Force push the reset
+            remote = self.repo.remote()
+            remote.push(force=True)
+            
+            # Restore original branch
+            self.repo.git.checkout(self.original_branch)
+            
+            self.merge_commit_hash = None
+            return True
+            
+        except Exception as e:
+            self.console.print(f"[red]Failed to undo merge: {str(e)}[/red]")
             return False 
