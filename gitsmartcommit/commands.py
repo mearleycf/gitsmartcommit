@@ -353,17 +353,32 @@ class MergeCommand(GitCommand):
             # Store current branch
             self.original_branch = self.repo.active_branch.name
             
-            # Check if main branch exists
+            # Check if main branch exists (either locally or remotely)
+            main_exists = False
             try:
-                # Try to get the main branch reference
+                # Check local branches
                 self.repo.refs[f"refs/heads/{self.main_branch}"]
+                main_exists = True
             except (IndexError, KeyError):
-                self.console.print(f"[red]Main branch '{self.main_branch}' does not exist[/red]")
+                try:
+                    # Check remote branches
+                    remote = self.repo.remote()
+                    remote_refs = [ref.name for ref in remote.refs]
+                    if f"{remote.name}/{self.main_branch}" in remote_refs:
+                        # Remote branch exists, create local tracking branch
+                        self.repo.git.checkout("-b", self.main_branch, f"{remote.name}/{self.main_branch}")
+                        main_exists = True
+                except Exception:
+                    pass
+            
+            if not main_exists:
+                self.console.print(f"[red]Main branch '{self.main_branch}' does not exist locally or remotely[/red]")
                 return False
             
             try:
-                # Check out main branch
-                self.repo.git.checkout(self.main_branch)
+                # Check out main branch if we haven't already
+                if self.repo.active_branch.name != self.main_branch:
+                    self.repo.git.checkout(self.main_branch)
                 
                 # Merge the feature branch
                 self.repo.git.merge(self.original_branch)
