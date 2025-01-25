@@ -363,13 +363,13 @@ class MergeCommand(GitCommand):
                 try:
                     # Check remote branches
                     remote = self.repo.remote()
-                    remote_refs = [ref.name for ref in remote.refs]
-                    if f"{remote.name}/{self.main_branch}" in remote_refs:
+                    remote_refs = [ref.name.split('/')[-1] for ref in remote.refs]
+                    if self.main_branch in remote_refs:
                         # Remote branch exists, create local tracking branch
                         self.repo.git.checkout("-b", self.main_branch, f"{remote.name}/{self.main_branch}")
                         main_exists = True
-                except Exception:
-                    pass
+                except Exception as e:
+                    self.console.print(f"[yellow]Warning checking remote branches: {str(e)}[/yellow]")
             
             if not main_exists:
                 self.console.print(f"[red]Main branch '{self.main_branch}' does not exist locally or remotely[/red]")
