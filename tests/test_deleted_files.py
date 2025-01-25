@@ -1,28 +1,29 @@
+"""Tests for handling deleted files."""
 import pytest
-import asyncio
 from pathlib import Path
+from git import Repo
 import tempfile
 import os
-from git import Repo
-from gitsmartcommit.core import GitCommitter, CommitUnit, CommitType
+
+from gitsmartcommit.core import GitCommitter
+from gitsmartcommit.models import CommitType, CommitUnit
 
 @pytest.fixture
 def temp_git_repo_with_deleted_file():
+    """Create a temporary git repo with a file that will be deleted."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         # Initialize git repo
         repo = Repo.init(tmp_dir)
         
-        # Create a test file that will be deleted
+        # Create and commit initial file
         test_file = Path(tmp_dir) / "to_delete.txt"
-        test_file.write_text("Content to be deleted")
+        test_file.write_text("Content to delete")
         
-        # Initial commit with the file
         repo.index.add(["to_delete.txt"])
         repo.index.commit("Initial commit")
         
-        # Delete the file and stage the deletion
-        os.remove(test_file)
-        repo.git.rm("--force", "to_delete.txt")
+        # Delete the file
+        test_file.unlink()
         
         yield tmp_dir
 
@@ -34,17 +35,20 @@ async def test_commit_deleted_file(temp_git_repo_with_deleted_file):
         scope="cleanup",
         description="remove unused file",
         files=["to_delete.txt"],
-        body="Removing file that is no longer needed"
+        body="Removing file that is no longer needed",
+        message="chore(cleanup): remove unused file"
     )
     
-    # Commit the deletion
+    # Initialize committer and create commit
     committer = GitCommitter(temp_git_repo_with_deleted_file)
     success = await committer.commit_changes([commit_unit])
-    
     assert success is True
     
-    # Verify the file is deleted and committed
+    # Verify commit was created
     repo = Repo(temp_git_repo_with_deleted_file)
+    assert len(list(repo.iter_commits())) > 1  # Initial commit + our commit
+    
+    # Verify the file is deleted and committed
     latest_commit = repo.head.commit
     assert latest_commit.message.startswith("chore(cleanup): remove unused file")
     assert "to_delete.txt" not in repo.head.commit.tree
