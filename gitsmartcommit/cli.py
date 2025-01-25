@@ -166,7 +166,11 @@ def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_pu
                 success = asyncio.run(committer.push_changes())
                 
                 if success and merge:
-                    success = asyncio.run(committer.merge_to_main(config.main_branch))
+                    merge_success = asyncio.run(committer.merge_to_main(config.main_branch))
+                    if not merge_success:
+                        console.print(f"\n[yellow]Note: Changes were pushed but could not be merged into '{config.main_branch}'.[/yellow]")
+                        console.print("[yellow]Please ensure the main branch exists and try merging manually.[/yellow]")
+                        success = False
     except KeyboardInterrupt:
         console.print("\n[yellow]Operation cancelled by user[/yellow]")
     except Exception as e:
