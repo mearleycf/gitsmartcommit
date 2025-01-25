@@ -13,7 +13,7 @@ from .commit_message import CommitMessageGenerator, CommitMessageStrategy
 from .observers import GitOperationObserver
 from .prompts import RELATIONSHIP_PROMPT, COMMIT_MESSAGE_PROMPT
 from .factories import AgentFactory, ClaudeAgentFactory
-from .commands import GitCommand, CommitCommand, PushCommand
+from .commands import GitCommand, CommitCommand, PushCommand, MergeCommand
 
 @dataclass
 class GitDependencies:
@@ -210,4 +210,9 @@ class GitCommitter:
     async def push_changes(self) -> bool:
         """Push commits to remote repository using the Command Pattern."""
         command = PushCommand(self.repo, self.console)
+        return await self.execute_command(command)
+    
+    async def merge_to_main(self, main_branch: str) -> bool:
+        """Merge current branch into main branch and push changes."""
+        command = MergeCommand(self.repo, main_branch, self.console)
         return await self.execute_command(command)

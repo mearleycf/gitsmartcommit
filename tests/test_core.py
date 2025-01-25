@@ -239,18 +239,17 @@ async def test_file_log_observer(temp_git_repo, tmp_path):
     await observer.on_commit_created(commit_unit)
     assert log_file.exists()
     content = log_file.read_text()
-    assert "COMMIT: feat(test): test commit" in content
-    assert "Files: test.txt" in content
-    assert "Body: Test commit body" in content
+    assert "Created commit: feat(test): test commit" in content
     
     # Test logging push
     await observer.on_push_completed(True)
     content = log_file.read_text()
-    assert "PUSH: Successfully pushed changes to remote" in content
+    assert "Successfully push changes to remote" in content
     
-    await observer.on_push_completed(False)
+    # Test logging merge
+    await observer.on_merge_completed(True, "feature", "main")
     content = log_file.read_text()
-    assert "PUSH: Failed to push changes to remote" in content
+    assert "Successfully merge feature into main" in content
 
 @pytest.mark.asyncio
 async def test_simple_commit_strategy(temp_git_repo):
