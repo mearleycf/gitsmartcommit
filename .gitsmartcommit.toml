@@ -1,0 +1,5 @@
+main_branch = "main"
+commit_style = "conventional"
+remote_name = "origin"
+auto_push = false
+always_log = false
