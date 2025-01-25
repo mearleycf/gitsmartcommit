@@ -51,26 +51,37 @@ gitsmartcommit --help
 
 ### Options
 
+- `-p, --path PATH`: Path to git repository (defaults to current directory)
+- `-d, --dry-run`: Show proposed commits without making changes
+- `-a, --auto-push`: Automatically push changes after committing
+- `-m, --merge`: After pushing changes, merge into main branch and push
+- `--main-branch TEXT`: Name of the main branch to merge into (defaults to 'main')
+- `-c, --commit-style [conventional|simple]`: Style of commit messages to generate
+- `-l, --log-file FILE`: Optional file to log git operations
+
+## Examples
+
 ```bash
-# Specify repository path (defaults to current directory)
-gitsmartcommit -p /path/to/repo
-gitsmartcommit --path /path/to/repo
+# Basic usage - analyze and commit changes
+gitsmartcommit
 
-# Preview commits without making changes
+# Dry run to see proposed commits
 gitsmartcommit -d
-gitsmartcommit --dry-run
 
-# Automatically push changes after committing
+# Auto-push changes after committing
 gitsmartcommit -a
-gitsmartcommit --auto-push
 
-# Choose commit message style (conventional or simple)
-gitsmartcommit -c simple (or -c conventional)
-gitsmartcommit --commit-style simple (or --commit-style conventional)
+# Auto-push and merge into main branch
+gitsmartcommit -a -m
+
+# Auto-push and merge into a different main branch
+gitsmartcommit -a -m --main-branch develop
+
+# Use simple commit style instead of conventional commits
+gitsmartcommit -c simple
 
 # Log operations to a file
-gitsmartcommit -l git_operations.log
-gitsmartcommit --log-file git_operations.log
+gitsmartcommit -l git-operations.log
 ```
 
 The tool will:
@@ -92,6 +103,37 @@ GitSmartCommit uses several design patterns to maintain a clean and extensible c
 - Command Pattern for git operations
 
 For more details about the design patterns used, see [Design Patterns Documentation](docs/design_patterns.md).
+
+## Configuration
+
+GitSmartCommit can be configured using a `.gitsmartcommit.toml` file in your repository root. This allows you to set default behaviors that can still be overridden by command line options.
+
+Example configuration file:
+
+```toml
+# Name of the main branch to merge into (default: "main")
+main_branch = "develop"
+
+# Style of commit messages (default: "conventional")
+# Options: "conventional" or "simple"
+commit_style = "conventional"
+
+# Name of the remote repository (default: "origin")
+remote_name = "origin"
+
+# Whether to automatically push changes after committing (default: false)
+auto_push = true
+
+# Whether to always generate log files (default: false)
+always_log = true
+
+# Custom log file path (ignored if always_log is true)
+log_file = "git-operations.log"
+```
+
+When `always_log` is enabled, log files are automatically generated with names in the format `gsc_log-YYYY-MM-DD_HH-mm-ss.log`.
+
+Command line options take precedence over configuration file settings. For example, if `auto_push = false` in the config file but you use the `-a` flag, changes will be pushed.
 
 ## Contributing
 
