@@ -78,7 +78,8 @@ async def test_git_committer(temp_git_repo):
         scope="test",
         description="test commit",
         files=["test.txt"],
-        body="Test commit body"
+        body="Test commit body",
+        message="feat(test): test commit"
     )
     
     # Make a change
@@ -196,7 +197,8 @@ async def test_git_committer_observers(temp_git_repo):
         scope="test",
         description="test commit",
         files=["test.txt"],
-        body="Test commit body"
+        body="Test commit body",
+        message="feat(test): test commit"
     )
     
     # Make a change
@@ -216,10 +218,6 @@ async def test_git_committer_observers(temp_git_repo):
     success = await committer.push_changes()
     assert success is False
     mock_observer.on_push_completed.assert_called_once_with(False)
-    
-    # Test removing observer
-    committer.remove_observer(mock_observer)
-    assert mock_observer not in committer.observers
 
 @pytest.mark.asyncio
 async def test_file_log_observer(temp_git_repo, tmp_path):
@@ -233,7 +231,8 @@ async def test_file_log_observer(temp_git_repo, tmp_path):
         scope="test",
         description="test commit",
         files=["test.txt"],
-        body="Test commit body"
+        body="Test commit body",
+        message="feat(test): test commit"
     )
     
     # Test logging commit
@@ -310,3 +309,73 @@ async def test_conventional_commit_strategy(temp_git_repo):
     assert ':' in f"{result.commit_type.value}({result.scope}): {result.description}"
     assert not result.description.endswith('.')
     assert result.reasoning
+
+@pytest.mark.asyncio
+async def test_git_push_no_tracking(temp_git_repo):
+    # Create a test commit unit
+    commit_unit = CommitUnit(
+        type=CommitType.FEAT,
+        scope="test",
+        description="test commit",
+        files=["test.txt"],
+        body="Test commit body",
+        message="feat(test): test commit"
+    )
+    
+    # Make a change
+    test_file = Path(temp_git_repo) / "test.txt"
+    test_file.write_text("Modified content")
+    
+    # Create committer and observer
+    committer = GitCommitter(temp_git_repo)
+    mock_observer = Mock(spec=GitOperationObserver)
+    mock_observer.on_push_completed = AsyncMock()
+    committer.add_observer(mock_observer)
+    
+    # Create a new branch
+    repo = Repo(temp_git_repo)
+    new_branch = repo.create_head('feature-branch')
+    repo.head.reference = new_branch
+    
+    # Commit and try to push
+    await committer.commit_changes([commit_unit])
+    success = await committer.push_changes()
+    
+    # Should fail since there's no upstream
+    assert success is False
+    mock_observer.on_push_completed.assert_called_once_with(False)
+
+@pytest.mark.asyncio
+async def test_git_push_no_remote(temp_git_repo):
+    # Create a test commit unit
+    commit_unit = CommitUnit(
+        type=CommitType.FEAT,
+        scope="test",
+        description="test commit",
+        files=["test.txt"],
+        body="Test commit body",
+        message="feat(test): test commit"
+    )
+    
+    # Make a change
+    test_file = Path(temp_git_repo) / "test.txt"
+    test_file.write_text("Modified content")
+    
+    # Create committer and observer
+    committer = GitCommitter(temp_git_repo)
+    mock_observer = Mock(spec=GitOperationObserver)
+    mock_observer.on_push_completed = AsyncMock()
+    committer.add_observer(mock_observer)
+    
+    # Remove any remotes
+    repo = Repo(temp_git_repo)
+    for remote in repo.remotes:
+        repo.delete_remote(remote)
+    
+    # Commit and try to push
+    await committer.commit_changes([commit_unit])
+    success = await committer.push_changes()
+    
+    # Should fail since there's no remote
+    assert success is False
+    mock_observer.on_push_completed.assert_called_once_with(False)

@@ -26,10 +26,12 @@ class CommitUnit(BaseModel):
     description: str
     files: List[str]
     body: Optional[str]
+    message: Optional[str]
 
 class RelationshipResult(BaseModel):
     groups: List[List[str]] = Field(description="Groups of related files")
     reasoning: str = Field(description="Explanation of why files are grouped together")
+    commit_units: List[CommitUnit] = Field(default_factory=list, description="Suggested commit units for each group")
 
 class CommitMessageResult(BaseModel):
     commit_type: CommitType

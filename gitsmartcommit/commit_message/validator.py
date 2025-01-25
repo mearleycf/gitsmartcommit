@@ -1,39 +1,15 @@
 """Commit message validation."""
 from typing import Tuple
+from .validation import create_validation_chain
 
 class CommitMessageValidator:
     """Validates commit messages against conventional commit standards."""
     
-    def __init__(self):
-        self.max_subject_length = 50
-        self.max_body_line_length = 72
+    def __init__(self, max_subject_length: int = 50, max_body_length: int = 72):
+        self.max_subject_length = max_subject_length
+        self.max_body_line_length = max_body_length
+        self.validation_chain = create_validation_chain(max_subject_length, max_body_length)
         
     def validate(self, message: str) -> Tuple[bool, str]:
         """Validate a commit message against standards."""
-        lines = message.split('\n')
-        if not lines:
-            return False, "Empty commit message"
-            
-        subject = lines[0]
-        
-        # Validate subject line
-        if len(subject) > self.max_subject_length:
-            return False, f"Subject line too long ({len(subject)} > {self.max_subject_length})"
-            
-        if subject.endswith('.'):
-            return False, "Subject line should not end with a period"
-            
-        # Validate conventional commit format
-        if ':' not in subject:
-            return False, "Subject line must follow format: type(scope): description"
-            
-        # Validate body
-        if len(lines) > 1:
-            if not lines[1] == '':
-                return False, "Leave one blank line after subject"
-                
-            for line in lines[2:]:
-                if len(line) > self.max_body_line_length:
-                    return False, f"Body line too long: {line}"
-                    
-        return True, "Valid commit message" 
+        return self.validation_chain.handle(message) 
