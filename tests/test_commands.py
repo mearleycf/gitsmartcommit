@@ -200,9 +200,10 @@ async def test_merge_command_success(mock_repo, mock_console):
     assert command.merge_commit_hash == "merge_commit_hash"
     
     # Verify the sequence of operations
-    assert mock_repo.git.checkout.call_args_list == [call("main"), call("feature")]
+    assert mock_repo.git.checkout.call_args_list == [call("main")]  # Only check out main once
     assert mock_repo.git.merge.call_args_list == [call("feature")]
-    assert mock_repo.remote.return_value.push.call_count == 1
+    # Verify push with correct refspec
+    mock_repo.remote.return_value.push.assert_called_once_with(refspec="main:main")
 
 @pytest.mark.asyncio
 async def test_merge_command_nonexistent_main_branch(mock_repo, mock_console):
