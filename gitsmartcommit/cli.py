@@ -6,11 +6,24 @@ from pathlib import Path
 from .core import ChangeAnalyzer, GitCommitter
 from .commit_message import ConventionalCommitStrategy, SimpleCommitStrategy
 from .observers import ConsoleLogObserver, FileLogObserver
+from .config import Config
 from typing import Optional
+import pyperclip
+import os
 
 console = Console()
 
 @click.command()
+@click.option(
+    '--config-dir',
+    is_flag=True,
+    help="Display the config file location and copy it to clipboard"
+)
+@click.option(
+    '--config-list',
+    is_flag=True,
+    help="Display current configuration settings"
+)
 @click.option(
     '-p',
     '--path', 
@@ -28,22 +41,31 @@ console = Console()
     '-a',
     '--auto-push',
     is_flag=True,
-    help="Automatically push changes after committing"
+    help="Automatically push changes after committing (overrides config setting)"
+)
+@click.option(
+    '-m',
+    '--merge',
+    is_flag=True,
+    help="After pushing changes, merge into main branch and push"
+)
+@click.option(
+    '--main-branch',
+    help="Name of the main branch to merge into (overrides config setting)"
 )
 @click.option(
     '-c',
     '--commit-style',
     type=click.Choice(['conventional', 'simple'], case_sensitive=False),
-    default='conventional',
-    help="Style of commit messages to generate"
+    help="Style of commit messages to generate (overrides config setting)"
 )
 @click.option(
     '-l',
     '--log-file',
     type=click.Path(dir_okay=False, path_type=Path),
-    help="Optional file to log git operations"
+    help="Optional file to log git operations (overrides config setting)"
 )
-def main(path: Path, dry_run: bool, auto_push: bool, commit_style: str, log_file: Optional[Path]):
+def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_push: bool, merge: bool, main_branch: str, commit_style: str, log_file: Optional[Path]):
     """
     Intelligent Git commit tool that analyzes changes and creates meaningful commits.
     
@@ -52,14 +74,72 @@ def main(path: Path, dry_run: bool, auto_push: bool, commit_style: str, log_file
     2. Group related changes into logical commits
     3. Generate meaningful commit messages
     4. Optionally push changes to remote
+    5. Optionally merge changes into main branch
+    
+    Configuration can be set in .gitsmartcommit.toml in the repository root.
+    Command line options override configuration file settings.
     """
     try:
-        repo_path = str(path.absolute())
+        repo_path = path.absolute()
         
-        # Select commit strategy based on user preference
-        strategy = ConventionalCommitStrategy() if commit_style == 'conventional' else SimpleCommitStrategy()
+        if config_list:
+            config = Config.load(repo_path)
+            config_path = repo_path / ".gitsmartcommit.toml"
+            
+            console.print("\n[bold]Current Configuration Settings:[/bold]")
+            if config_path.exists():
+                console.print(f"[dim]Config file: {str(config_path).replace(os.sep, '/')}[/dim]")
+            else:
+                console.print("[dim]Using default values (no config file found)[/dim]")
+            
+            console.print(f"\n{'Setting':<20} {'Value':<20} {'Source':<10}")
+            console.print("-" * 50)
+            
+            def print_setting(name: str, value: any, source: str):
+                console.print(f"{name:<20} {str(value):<20} {source:<10}")
+            
+            print_setting("main_branch", config.main_branch, "config" if config_path.exists() else "default")
+            print_setting("commit_style", config.commit_style, "config" if config_path.exists() else "default")
+            print_setting("remote_name", config.remote_name, "config" if config_path.exists() else "default")
+            print_setting("auto_push", config.auto_push, "config" if config_path.exists() else "default")
+            print_setting("always_log", config.always_log, "config" if config_path.exists() else "default")
+            print_setting("log_file", config.log_file or "None", "config" if config_path.exists() else "default")
+            
+            console.print("\nTo modify these settings, create or edit .gitsmartcommit.toml in your repository root")
+            return
         
-        analyzer = ChangeAnalyzer(repo_path, commit_strategy=strategy)
+        if config_dir:
+            config_path = repo_path / ".gitsmartcommit.toml"
+            config_path_str = str(config_path)
+            
+            # Create default config file if it doesn't exist
+            if not config_path.exists():
+                config = Config()
+                config.save(repo_path)
+                console.print("[yellow]Created new config file with default values[/yellow]")
+            
+            pyperclip.copy(config_path_str)
+            console.print(f"[green]Config file location:[/green] {config_path_str}")
+            console.print("[green]Path copied to clipboard![/green]")
+            return
+
+        # Load configuration
+        config = Config.load(repo_path)
+        
+        # Command line options override config
+        if main_branch is not None:
+            config.main_branch = main_branch
+        if commit_style is not None:
+            config.commit_style = commit_style
+        if auto_push:
+            config.auto_push = True
+        if log_file is not None:
+            config.log_file = str(log_file)
+        
+        # Select commit strategy based on configuration
+        strategy = ConventionalCommitStrategy() if config.commit_style == 'conventional' else SimpleCommitStrategy()
+        
+        analyzer = ChangeAnalyzer(str(repo_path), commit_strategy=strategy)
         commit_units = asyncio.run(analyzer.analyze_changes())
         
         # Always show the commit messages
@@ -70,17 +150,23 @@ def main(path: Path, dry_run: bool, auto_push: bool, commit_style: str, log_file
                 console.print(f"Body: {unit.body}\n")
         
         if not dry_run:
-            committer = GitCommitter(repo_path)
+            committer = GitCommitter(str(repo_path))
             
             # Add observers
             committer.add_observer(ConsoleLogObserver(console))
-            if log_file:
-                committer.add_observer(FileLogObserver(str(log_file)))
+            
+            # Set up logging based on configuration
+            log_file_path = config.get_log_file()
+            if log_file_path:
+                committer.add_observer(FileLogObserver(str(log_file_path)))
             
             success = asyncio.run(committer.commit_changes(commit_units))
             
-            if success and auto_push:
+            if success and (auto_push or config.auto_push):
                 success = asyncio.run(committer.push_changes())
+                
+                if success and merge:
+                    success = asyncio.run(committer.merge_to_main(config.main_branch))
     except KeyboardInterrupt:
         console.print("\n[yellow]Operation cancelled by user[/yellow]")
     except Exception as e:
