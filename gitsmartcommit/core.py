@@ -12,6 +12,8 @@ from .models import CommitType, FileChange, CommitUnit, RelationshipResult, Comm
 from .commit_message import CommitMessageGenerator, CommitMessageStrategy
 from .observers import GitOperationObserver
 from .prompts import RELATIONSHIP_PROMPT, COMMIT_MESSAGE_PROMPT
+from .factories import AgentFactory, ClaudeAgentFactory
+from .commands import GitCommand, CommitCommand, PushCommand
 
 @dataclass
 class GitDependencies:
@@ -19,112 +21,35 @@ class GitDependencies:
     repo_path: str
 
 class ChangeAnalyzer:
+    """Analyzes changes in a Git repository."""
+
     def __init__(self, repo_path: str, commit_strategy: Optional[CommitMessageStrategy] = None):
+        """Initialize the analyzer with a Git repository."""
         self.repo = Repo(repo_path)
-        self.console = Console()
-        self.git_deps = GitDependencies(repo=self.repo, repo_path=repo_path)
+        self.repo_path = repo_path
+        self.agent_factory = ClaudeAgentFactory()
         
-        # Initialize agents
-        self.relationship_agent = Agent(
-            'anthropic:claude-3-5-sonnet-latest',
-            result_type=RelationshipResult,
-            system_prompt=RELATIONSHIP_PROMPT
-        )
+        if commit_strategy:
+            self.commit_strategy = commit_strategy
+        else:
+            self.commit_strategy = self.agent_factory.create_commit_strategy()
+            
+        self.relationship_agent = self.agent_factory.create_relationship_agent()
+        self.commit_generator = CommitMessageGenerator(self.commit_strategy)
 
-        self.commit_agent = CommitMessageGenerator(strategy=commit_strategy)
-
-    def _validate_repo(self):
+    def _validate_repo(self) -> bool:
         """Validate repository state and raise appropriate errors."""
         if not self.repo.is_dirty() and not self.repo.untracked_files:
             raise ValueError("No changes detected in repository")
         return True
 
-    async def analyze_changes(self) -> List[CommitUnit]:
-        """Analyze repository changes and group them into logical commit units."""
-        self._validate_repo()
-        
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=self.console,
-        ) as progress:
-            # Collect all changes
-            task = progress.add_task("Analyzing repository changes...", total=None)
-            changes = self._collect_changes()
-            
-            # If there's only one file changed, no need for relationship analysis
-            if len(changes) == 1:
-                task = progress.add_task("Generating commit message...", total=None)
-                result = await self.commit_agent.generate_commit_message(changes, self.repo)
-                if not result:
-                    return []
-                    
-                commit_analysis = result.data if hasattr(result, 'data') else result
-                body = commit_analysis.reasoning if commit_analysis.reasoning else ""
-                
-                commit_unit = CommitUnit(
-                    type=commit_analysis.commit_type,
-                    scope=commit_analysis.scope,
-                    description=commit_analysis.description,
-                    files=commit_analysis.related_files,
-                    body=body
-                )
-                progress.update(task, completed=True)
-                return [commit_unit]
-            
-            # Use AI to analyze relationships and group changes
-            task = progress.add_task("Grouping related changes...", total=None)
-            file_tuples = [(change.path, change.content_diff) for change in changes]
-
-            analyze_result = await self.relationship_agent.run(
-                """Please analyze these files and group related changes based on logical units of work. 
-A single logical unit means changes that work together to achieve one goal. 
-For example: implementation files with their tests, or configuration files that support a feature.
-
-Files to analyze:
-"""
-                + "\n".join(f"{path}: {diff}" for path, diff in file_tuples)
-            )
-            
-            if not analyze_result or not hasattr(analyze_result, 'data'):
-                raise ValueError("Failed to analyze relationships between changes")
-                
-            grouping_result = analyze_result.data
-            
-            # Generate commit messages for each group
-            commit_units = []
-            for group in grouping_result.groups:
-                group_changes = [c for c in changes if c.path in group]
-                
-                result = await self.commit_agent.generate_commit_message(group_changes, self.repo)
-                if not result:
-                    continue
-                    
-                commit_analysis = result.data if hasattr(result, 'data') else result
-                body = commit_analysis.reasoning if commit_analysis.reasoning else ""
-                
-                commit_unit = CommitUnit(
-                    type=commit_analysis.commit_type,
-                    scope=commit_analysis.scope,
-                    description=commit_analysis.description,
-                    files=commit_analysis.related_files,
-                    body=body
-                )
-                commit_units.append(commit_unit)
-            
-            progress.update(task, completed=True)
-            return commit_units
-
     def _collect_changes(self) -> List[FileChange]:
         """Collect all changes in the repository."""
         changes = []
-        print("Collecting changes...")
         
         # Get staged changes
-        print("Getting staged changes...")
         diff_staged = self.repo.index.diff(self.repo.head.commit)
         for diff in diff_staged:
-            print(f"Found staged change: {diff.a_path or diff.b_path}")
             content = diff.diff.decode('utf-8') if isinstance(diff.diff, bytes) else str(diff.diff)
             changes.append(FileChange(
                 path=diff.a_path or diff.b_path,
@@ -134,10 +59,8 @@ Files to analyze:
             ))
         
         # Get unstaged changes
-        print("Getting unstaged changes...")
         diff_unstaged = self.repo.index.diff(None)
         for diff in diff_unstaged:
-            print(f"Found unstaged change: {diff.a_path or diff.b_path}")
             content = diff.diff.decode('utf-8') if isinstance(diff.diff, bytes) else str(diff.diff)
             changes.append(FileChange(
                 path=diff.a_path or diff.b_path,
@@ -147,9 +70,7 @@ Files to analyze:
             ))
         
         # Get untracked files
-        print("Getting untracked files...")
         for file_path in self.repo.untracked_files:
-            print(f"Found untracked file: {file_path}")
             with open(Path(self.repo.working_dir) / file_path, 'r') as f:
                 content = f.read()
             changes.append(FileChange(
@@ -159,35 +80,116 @@ Files to analyze:
                 is_staged=False
             ))
         
-        print(f"Total changes found: {len(changes)}")
         return changes
 
+    async def analyze_changes(self) -> List[CommitUnit]:
+        """Analyze the changes in the repository and suggest commit units."""
+        self._validate_repo()
+        
+        # Collect all changes
+        changes = self._collect_changes()
+        
+        # If there's only one file changed, no need for relationship analysis
+        if len(changes) == 1:
+            message = await self.commit_generator.generate_commit_message(
+                [changes[0]], self.repo
+            )
+            return [CommitUnit(
+                type=message.commit_type,
+                scope=message.scope,
+                description=message.description,
+                files=[changes[0].path],
+                message=f"{message.commit_type.value}({message.scope}): {message.description}",
+                body=message.reasoning or ""
+            )]
+        
+        # Analyze relationships between changes
+        diffs = []
+        for change in changes:
+            diffs.append(f"Changes in {change.path}:\n{change.content_diff}")
+        
+        result = await self.relationship_agent.run(
+            """Please analyze these files and group related changes based on logical units of work. 
+A single logical unit means changes that work together to achieve one goal. 
+For example: implementation files with their tests, or configuration files that support a feature.
+
+Files to analyze:
+"""
+            + "\n".join(diffs)
+        )
+        
+        if not result or not hasattr(result, 'data'):
+            raise ValueError("Failed to analyze relationships between changes")
+            
+        grouping_result = result.data
+        
+        # Generate commit messages for each unit
+        commit_units = []
+        for group in grouping_result.groups:
+            group_changes = [c for c in changes if c.path in group]
+            
+            result = await self.commit_generator.generate_commit_message(group_changes, self.repo)
+            if not result:
+                continue
+                
+            commit_analysis = result.data if hasattr(result, 'data') else result
+            body = commit_analysis.reasoning if commit_analysis.reasoning else ""
+            
+            commit_unit = CommitUnit(
+                type=commit_analysis.commit_type,
+                scope=commit_analysis.scope,
+                description=commit_analysis.description,
+                files=commit_analysis.related_files,
+                body=body,
+                message=f"{commit_analysis.commit_type.value}({commit_analysis.scope}): {commit_analysis.description}"
+            )
+            commit_units.append(commit_unit)
+        
+        return commit_units
+
 class GitCommitter:
+    """Handles git operations using the Command Pattern."""
+    
     def __init__(self, repo_path: str):
         self.repo = Repo(repo_path)
         self.console = Console()
         self.observers: List[GitOperationObserver] = []
-
+        self.command_history: List[GitCommand] = []
+    
     def add_observer(self, observer: GitOperationObserver) -> None:
         """Add an observer to be notified of git operations."""
         self.observers.append(observer)
-
+    
     def remove_observer(self, observer: GitOperationObserver) -> None:
         """Remove an observer from the notification list."""
         self.observers.remove(observer)
-
-    async def notify_commit_created(self, commit_unit: CommitUnit) -> None:
-        """Notify all observers that a commit was created."""
+    
+    async def execute_command(self, command: GitCommand) -> bool:
+        """Execute a git command and store it in history if successful."""
+        # Add observers to the command
         for observer in self.observers:
-            await observer.on_commit_created(commit_unit)
-
-    async def notify_push_completed(self, success: bool) -> None:
-        """Notify all observers that a push operation completed."""
-        for observer in self.observers:
-            await observer.on_push_completed(success)
-
+            command.add_observer(observer)
+        
+        # Execute the command
+        success = await command.execute()
+        
+        # Store in history if successful
+        if success:
+            self.command_history.append(command)
+        
+        return success
+    
+    async def undo_last_command(self) -> bool:
+        """Undo the last executed command."""
+        if not self.command_history:
+            self.console.print("[yellow]No commands to undo[/yellow]")
+            return False
+        
+        command = self.command_history.pop()
+        return await command.undo()
+    
     async def commit_changes(self, commit_units: List[CommitUnit]) -> bool:
-        """Create commits for each commit unit."""
+        """Create commits for each commit unit using the Command Pattern."""
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -195,56 +197,17 @@ class GitCommitter:
         ) as progress:
             task = progress.add_task("Creating commits...", total=len(commit_units))
             
+            success = True
             for unit in commit_units:
-                # Stage files for this commit
-                for file_path in unit.files:
-                    file_exists = Path(self.repo.working_dir) / file_path
-                    if file_exists.exists():
-                        self.repo.index.add([file_path])
-                    else:
-                        # Handle deleted files
-                        try:
-                            self.repo.index.remove([file_path])
-                        except git.exc.GitCommandError:
-                            # If the file is already staged for deletion, continue
-                            pass
-                
-                # Create commit message
-                message = f"{unit.type.value}"
-                if unit.scope:
-                    message += f"({unit.scope})"
-                message += f": {unit.description}"
-                if unit.body:
-                    message += f"\n\n{unit.body}"
-                
-                # Create commit
-                self.repo.index.commit(message)
-                await self.notify_commit_created(unit)
+                command = CommitCommand(self.repo, unit, self.console)
+                if not await self.execute_command(command):
+                    success = False
+                    break
                 progress.advance(task)
             
-            return True
-
-    async def push_changes(self) -> bool:
-        """Push commits to remote repository."""
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=self.console,
-        ) as progress:
-            task = progress.add_task("Pushing changes to remote...", total=None)
-            
-            try:
-                # Check if remote exists
-                if not self.repo.remotes:
-                    self.console.print("[red]No remote repository configured[/red]")
-                    success = False
-                else:
-                    self.repo.remote().push()
-                    progress.update(task, completed=True)
-                    success = True
-            except git.GitCommandError as e:
-                self.console.print(f"[red]Failed to push changes: {str(e)}[/red]")
-                success = False
-
-            await self.notify_push_completed(success)
             return success
+    
+    async def push_changes(self) -> bool:
+        """Push commits to remote repository using the Command Pattern."""
+        command = PushCommand(self.repo, self.console)
+        return await self.execute_command(command)
