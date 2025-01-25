@@ -340,7 +340,7 @@ class MergeCommand(GitCommand):
         """Merge the current branch into the main branch.
         
         This method will:
-        1. Store the current branch name
+        1. Store current branch name
         2. Check out the main branch
         3. Merge the feature branch
         4. Push the merged changes
@@ -400,16 +400,16 @@ class MergeCommand(GitCommand):
                 self.repo.git.merge(self.original_branch)
                 self.merge_commit_hash = self.repo.head.commit.hexsha
                 
-                # Push the merged changes
+                # Push the merged changes to remote
                 remote = self.repo.remote()
-                remote.push()
+                remote.push(refspec=f"{self.main_branch}:{self.main_branch}")
                 
                 # Notify observers
                 for observer in self.observers:
                     await observer.on_merge_completed(True, self.original_branch, self.main_branch)
                 
-                # Restore original branch
-                self.repo.git.checkout(self.original_branch)
+                # Stay on main branch after successful merge
+                self.console.print(f"[green]Successfully merged {self.original_branch} into {self.main_branch}[/green]")
                 
                 return True
                 
