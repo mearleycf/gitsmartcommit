@@ -12,6 +12,9 @@ dependencies = [
     "rich>=13.0.0",  # For nice terminal output
     "click>=8.0.0",  # For CLI interface
     "asyncio>=3.4.3",  # For async/await support
+    "tomli>=2.0.0",
+    "tomli-w>=1.0.0",
+    "pyperclip>=1.8.2",  # For clipboard operations
 ]
 requires-python = ">=3.9"
 readme = "README.md"
