@@ -44,6 +44,11 @@ class Config(BaseModel):
         default=None,
         description="Path to log file (if not using automatic log file generation)"
     )
+
+    model: str = Field(
+        default="claude-3-5-sonnet-latest",
+        description="AI model to use for generating commit messages (e.g., claude-3-5-sonnet-latest, gemini-pro)"
+    )
     
     @classmethod
     def load(cls, repo_path: Path) -> 'Config':
