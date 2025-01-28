@@ -1,6 +1,7 @@
 """Factory classes for creating agents and other components."""
 from abc import ABC, abstractmethod
 from pydantic_ai import Agent
+import google.generativeai as genai
 
 from .models import RelationshipResult, CommitMessageResult
 from .commit_message import CommitMessageGenerator, CommitMessageStrategy, ConventionalCommitStrategy
@@ -36,6 +37,26 @@ class ClaudeAgentFactory(AgentFactory):
     def create_commit_strategy(self) -> CommitMessageStrategy:
         """Create a conventional commit strategy using Claude."""
         return ConventionalCommitStrategy(model=f"anthropic:{self.model}" if not self.model.startswith("anthropic:") else self.model)
+
+class GeminiAgentFactory(AgentFactory):
+    """Factory for creating Google Gemini-based agents."""
+    
+    def __init__(self, model: str = 'gemini-pro', api_key: str = None):
+        self.model = model
+        if api_key:
+            genai.configure(api_key=api_key)
+        
+    def create_relationship_agent(self) -> Agent:
+        """Create a Gemini agent for analyzing relationships."""
+        return Agent(
+            model=f"google-gla:{self.model}" if not self.model.startswith("google-gla:") else self.model,
+            result_type=RelationshipResult,
+            system_prompt=RELATIONSHIP_PROMPT
+        )
+    
+    def create_commit_strategy(self) -> CommitMessageStrategy:
+        """Create a conventional commit strategy using Gemini."""
+        return ConventionalCommitStrategy(model=f"google-gla:{self.model}" if not self.model.startswith("google-gla:") else self.model)
 
 class MockAgentFactory(AgentFactory):
     """Factory for creating mock agents (used in testing)."""

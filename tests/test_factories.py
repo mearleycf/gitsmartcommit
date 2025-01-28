@@ -1,9 +1,9 @@
 """Tests for factory classes."""
 import pytest
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import Mock, AsyncMock, patch
 from pydantic_ai import Agent
 
-from gitsmartcommit.factories import AgentFactory, ClaudeAgentFactory, MockAgentFactory
+from gitsmartcommit.factories import AgentFactory, ClaudeAgentFactory, GeminiAgentFactory, MockAgentFactory
 from gitsmartcommit.models import RelationshipResult, CommitUnit, CommitType
 from gitsmartcommit.commit_message import CommitMessageStrategy
 
@@ -19,6 +19,32 @@ def test_claude_agent_factory():
     # Test commit strategy creation
     commit_strategy = factory.create_commit_strategy()
     assert isinstance(commit_strategy, CommitMessageStrategy)
+
+def test_gemini_agent_factory():
+    """Test the Gemini agent factory creates appropriate instances."""
+    with patch('google.generativeai.configure') as mock_configure:
+        factory = GeminiAgentFactory(model='gemini-pro', api_key='test-key')
+        mock_configure.assert_called_once_with(api_key='test-key')
+        
+        # Test relationship agent creation
+        relationship_agent = factory.create_relationship_agent()
+        assert isinstance(relationship_agent, Agent)
+        assert relationship_agent.model.model_name == 'gemini-pro'
+        
+        # Test commit strategy creation
+        commit_strategy = factory.create_commit_strategy()
+        assert isinstance(commit_strategy, CommitMessageStrategy)
+
+def test_gemini_agent_factory_no_api_key():
+    """Test the Gemini agent factory without API key."""
+    with patch('google.generativeai.configure') as mock_configure:
+        factory = GeminiAgentFactory(model='gemini-pro')
+        mock_configure.assert_not_called()
+        
+        # Test relationship agent creation
+        relationship_agent = factory.create_relationship_agent()
+        assert isinstance(relationship_agent, Agent)
+        assert relationship_agent.model.model_name == 'gemini-pro'
 
 def test_mock_agent_factory():
     """Test the mock agent factory with provided mocks."""
