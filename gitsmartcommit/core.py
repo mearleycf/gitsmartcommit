@@ -23,11 +23,13 @@ class GitDependencies:
 class ChangeAnalyzer:
     """Analyzes changes in a Git repository."""
 
-    def __init__(self, repo_path: str, commit_strategy: Optional[CommitMessageStrategy] = None):
+    def __init__(self, repo_path: str, factory: Optional[AgentFactory] = None, commit_strategy: Optional[CommitMessageStrategy] = None):
         """Initialize the analyzer with a Git repository."""
         self.repo = Repo(repo_path)
         self.repo_path = repo_path
-        self.agent_factory = ClaudeAgentFactory()
+        
+        # Use provided factory or default to Claude
+        self.agent_factory = factory or ClaudeAgentFactory()
         
         if commit_strategy:
             self.commit_strategy = commit_strategy
