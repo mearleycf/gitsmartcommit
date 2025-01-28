@@ -7,11 +7,22 @@ from .core import ChangeAnalyzer, GitCommitter
 from .commit_message import ConventionalCommitStrategy, SimpleCommitStrategy
 from .observers import ConsoleLogObserver, FileLogObserver
 from .config import Config
+from .factories import ClaudeAgentFactory, GeminiAgentFactory
 from typing import Optional
 import pyperclip
 import os
 
 console = Console()
+
+def get_agent_factory(model: str, api_key: Optional[str] = None):
+    """Get the appropriate agent factory based on the model name."""
+    if model.startswith('anthropic:') or model.startswith('claude-'):
+        return ClaudeAgentFactory(model=model)
+    elif model.startswith('google:') or model.startswith('gemini-'):
+        return GeminiAgentFactory(model=model, api_key=api_key)
+    else:
+        # Default to Claude if no specific prefix
+        return ClaudeAgentFactory(model=model)
 
 @click.command()
 @click.option(
@@ -65,7 +76,12 @@ console = Console()
     type=click.Path(dir_okay=False, path_type=Path),
     help="Optional file to log git operations (overrides config setting)"
 )
-def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_push: bool, merge: bool, main_branch: str, commit_style: str, log_file: Optional[Path]):
+@click.option('--simple', is_flag=True, help='Use simple commit message format instead of conventional commits')
+@click.option('--model', default='claude-3-5-sonnet-latest', 
+              help='AI model to use (e.g. claude-3-5-sonnet-latest, gemini-pro)')
+@click.option('--api-key', envvar=['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'ANTHROPIC_API_KEY'],
+              help='API key for the selected model. Can also be set via environment variables: GEMINI_API_KEY, GOOGLE_API_KEY, or ANTHROPIC_API_KEY')
+def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_push: bool, merge: bool, main_branch: str, commit_style: str, log_file: Optional[Path], simple: bool, model: str, api_key: Optional[str]):
     """
     Intelligent Git commit tool that analyzes changes and creates meaningful commits.
     
@@ -104,6 +120,7 @@ def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_pu
             print_setting("auto_push", config.auto_push, "config" if config_path.exists() else "default")
             print_setting("always_log", config.always_log, "config" if config_path.exists() else "default")
             print_setting("log_file", config.log_file or "None", "config" if config_path.exists() else "default")
+            print_setting("model", config.model, "config" if config_path.exists() else "default")
             
             console.print("\nTo modify these settings, create or edit .gitsmartcommit.toml in your repository root")
             return
@@ -135,15 +152,20 @@ def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_pu
             config.auto_push = True
         if log_file is not None:
             config.log_file = str(log_file)
+        if model is not None:
+            config.model = model
+        
+        # Create the appropriate factory based on model selection
+        factory = get_agent_factory(config.model, api_key)
+        
+        # Initialize analyzer with the factory
+        analyzer = ChangeAnalyzer(str(repo_path), factory=factory)
         
         # Select commit strategy based on configuration
         strategy = ConventionalCommitStrategy() if config.commit_style == 'conventional' else SimpleCommitStrategy()
         
-        analyzer = ChangeAnalyzer(str(repo_path), commit_strategy=strategy)
-        commit_units = asyncio.run(analyzer.analyze_changes())
-        
         # Always show the commit messages
-        for unit in commit_units:
+        for unit in asyncio.run(analyzer.analyze_changes()):
             console.print(f"[green]{unit.type.value}({unit.scope}): {unit.description}[/green]")
             console.print(f"Files: {', '.join(unit.files)}")
             if unit.body:
@@ -160,7 +182,7 @@ def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_pu
             if log_file_path:
                 committer.add_observer(FileLogObserver(str(log_file_path)))
             
-            success = asyncio.run(committer.commit_changes(commit_units))
+            success = asyncio.run(committer.commit_changes(asyncio.run(analyzer.analyze_changes())))
             
             if success and (auto_push or config.auto_push):
                 success = asyncio.run(committer.push_changes())
