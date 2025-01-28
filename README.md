@@ -129,11 +129,55 @@ always_log = true
 
 # Custom log file path (ignored if always_log is true)
 log_file = "git-operations.log"
+
+# AI model to use (default: "claude-3-5-sonnet-latest")
+# Options: "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "gemini-pro"
+model = "claude-3-5-sonnet-latest"
 ```
 
 When `always_log` is enabled, log files are automatically generated with names in the format `gsc_log-YYYY-MM-DD_HH-mm-ss.log`.
 
 Command line options take precedence over configuration file settings. For example, if `auto_push = false` in the config file but you use the `-a` flag, changes will be pushed.
+
+### API Keys
+
+For security reasons, API keys should NOT be stored in the configuration file. Instead, provide them through environment variables:
+
+```bash
+# For Gemini
+export GEMINI_API_KEY="your-key"
+# Or
+export GOOGLE_API_KEY="your-key"
+
+# For Claude
+export ANTHROPIC_API_KEY="your-key"
+```
+
+You can also provide the API key via the `--api-key` flag, but this is not recommended as it may be visible in your shell history:
+```bash
+git smart-commit --model gemini-pro --api-key "your-key"  # Not recommended
+```
+
+## AI Models
+
+GitSmartCommit supports multiple AI models for generating commit messages and analyzing changes:
+
+1. Anthropic Claude (default)
+   - Models: claude-3-5-sonnet-latest (default), claude-3-5-haiku-latest
+   - Requires: ANTHROPIC_API_KEY environment variable
+
+2. Google Gemini
+   - Model: gemini-pro (automatically uses latest production version)
+   - Requires: GEMINI_API_KEY or GOOGLE_API_KEY environment variable
+
+You can select a model using the `--model` flag or configuration file:
+```bash
+# Use Claude (default)
+git smart-commit
+
+# Use Gemini
+git smart-commit --model gemini-pro
+```
 
 ## Contributing
 
