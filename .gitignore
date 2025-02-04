@@ -51,6 +51,8 @@ htmlcov/
 
 # Local development
 .python-version
+.gitsmartcommit.toml
+.mise.toml
 
 # Logs
 logs/

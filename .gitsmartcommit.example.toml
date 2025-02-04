@@ -1,0 +1,24 @@
+# Name of the main branch to merge into (default: "main")
+main_branch = "main"
+
+# Style of commit messages (default: "conventional")
+# Options: "conventional" or "simple"
+commit_style = "conventional"
+
+# Name of the remote repository (default: "origin")
+remote_name = "origin"
+
+# Whether to automatically push changes after committing (default: false)
+auto_push = false
+
+# Whether to always generate log files (default: false)
+always_log = false
+
+# Custom log file path (ignored if always_log is true)
+# Default: None (disabled)
+# Example: log_file = "git-operations.log"
+log_file = ""
+
+# AI model to use (default: "claude-3-5-sonnet-latest")
+# Options: "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "gemini-pro"
+model = "claude-3-5-sonnet-latest" 
