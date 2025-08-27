@@ -33,20 +33,25 @@ venv\Scripts\activate.bat
 # For Windows PowerShell:
 venv\Scripts\Activate.ps1
 
+# Note: Make sure to activate the virtual environment before running the command
+
 # Install the package in editable mode with development dependencies
 pip install -e ".[dev]"
+
+# For global installation (recommended for regular use):
+python3 -m pip install -e . --user
 ```
 
 ## Usage
 
-After installation, you can use the `gitsmartcommit` command in any git repository:
+After installation, you can use the `git-smart-commit` command in any git repository:
 
 ```bash
 # Basic usage (analyzes current directory)
-gitsmartcommit
+git-smart-commit
 
 # Get help and see all available options
-gitsmartcommit --help
+git-smart-commit --help
 ```
 
 ### Options
@@ -63,25 +68,25 @@ gitsmartcommit --help
 
 ```bash
 # Basic usage - analyze and commit changes
-gitsmartcommit
+git-smart-commit
 
 # Dry run to see proposed commits
-gitsmartcommit -d
+git-smart-commit -d
 
 # Auto-push changes after committing
-gitsmartcommit -a
+git-smart-commit -a
 
 # Auto-push and merge into main branch
-gitsmartcommit -a -m
+git-smart-commit -a -m
 
 # Auto-push and merge into a different main branch
-gitsmartcommit -a -m --main-branch develop
+git-smart-commit -a -m --main-branch develop
 
 # Use simple commit style instead of conventional commits
-gitsmartcommit -c simple
+git-smart-commit -c simple
 
 # Log operations to a file
-gitsmartcommit -l git-operations.log
+git-smart-commit -l git-operations.log
 ```
 
 The tool will:
@@ -131,7 +136,7 @@ always_log = true
 log_file = "git-operations.log"
 
 # AI model to use (default: "claude-3-5-sonnet-latest")
-# Options: "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "gemini-pro"
+# Options: "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "gemini-pro", "qwen2.5-coder:7b"
 model = "claude-3-5-sonnet-latest"
 ```
 
@@ -151,6 +156,12 @@ export GOOGLE_API_KEY="your-key"
 
 # For Claude
 export ANTHROPIC_API_KEY="your-key"
+
+# For Qwen (via HuggingFace)
+export HF_TOKEN="your-huggingface-token"
+
+# For Qwen (via Ollama - no token needed)
+# Just make sure Ollama is running and the model is installed
 ```
 
 You can also provide the API key via the `--api-key` flag, but this is not recommended as it may be visible in your shell history:
@@ -162,18 +173,39 @@ git smart-commit --model gemini-pro --api-key "your-key"  # Not recommended
 
 GitSmartCommit supports multiple AI models for generating commit messages and analyzing changes:
 
-1. Anthropic Claude (default)
-   - Models: claude-3-5-sonnet-latest (default), claude-3-5-haiku-latest
+1. Qwen (default)
+   - Models: qwen2.5-coder:7b (default), and other Qwen models
+   - Options:
+     - **HuggingFace**: Requires HF_TOKEN environment variable (HuggingFace API token)
+     - **Ollama**: No API token required (runs locally via Ollama API)
+
+2. Anthropic Claude
+   - Models: claude-3-5-sonnet-latest, claude-3-5-haiku-latest
    - Requires: ANTHROPIC_API_KEY environment variable
 
 2. Google Gemini
    - Model: gemini-pro (automatically uses latest production version)
    - Requires: GEMINI_API_KEY or GOOGLE_API_KEY environment variable
 
+3. Qwen
+   - Models: qwen2.5-coder:7b (and other Qwen models)
+   - Options:
+     - **HuggingFace**: Requires HF_TOKEN environment variable (HuggingFace API token)
+     - **Ollama**: No API token required (runs locally via Ollama API)
+
 You can select a model using the `--model` flag or configuration file:
 ```bash
-# Use Claude (default)
+# Use Qwen (default - Ollama)
 git smart-commit
+
+# Use Qwen (HuggingFace)
+git smart-commit --model qwen2.5-coder:7b
+
+# Use Qwen (Ollama - explicit)
+git smart-commit --model ollama:qwen2.5-coder:7b
+
+# Use Claude
+git smart-commit --model claude-3-5-sonnet-latest
 
 # Use Gemini
 git smart-commit --model gemini-pro

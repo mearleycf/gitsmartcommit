@@ -20,7 +20,7 @@ class ConventionalCommitStrategy(CommitMessageStrategy):
     def __init__(self, model: str = 'anthropic:claude-3-5-sonnet-latest'):
         self.agent = Agent(
             model=model,
-            result_type=CommitMessageResult,
+            output_type=CommitMessageResult,
             system_prompt=COMMIT_MESSAGE_PROMPT
         )
     
@@ -60,7 +60,10 @@ Please generate a high-quality commit message that follows these requirements ex
         if not result:
             return None
             
-        if hasattr(result, 'data'):
+        # Handle different result structures
+        if hasattr(result, 'output'):
+            result = result.output
+        elif hasattr(result, 'data'):
             result = result.data
         elif isinstance(result, dict):
             result = CommitMessageResult(**result)
@@ -73,7 +76,7 @@ class SimpleCommitStrategy(CommitMessageStrategy):
     def __init__(self, model: str = 'anthropic:claude-3-5-sonnet-latest'):
         self.agent = Agent(
             model=model,
-            result_type=CommitMessageResult,
+            output_type=CommitMessageResult,
             system_prompt="""You are a Git commit message generator that creates simple, clear commit messages.
             Focus on clarity and brevity while still explaining the purpose of the changes."""
         )
@@ -105,7 +108,10 @@ Please generate a clear commit message that follows these requirements."""
         if not result:
             return None
             
-        if hasattr(result, 'data'):
+        # Handle different result structures
+        if hasattr(result, 'output'):
+            result = result.output
+        elif hasattr(result, 'data'):
             result = result.data
         elif isinstance(result, dict):
             result = CommitMessageResult(**result)

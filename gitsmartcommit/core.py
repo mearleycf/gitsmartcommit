@@ -93,9 +93,18 @@ class ChangeAnalyzer:
         
         # If there's only one file changed, no need for relationship analysis
         if len(changes) == 1:
-            message = await self.commit_generator.generate_commit_message(
+            result = await self.commit_generator.generate_commit_message(
                 [changes[0]], self.repo
             )
+            
+            # Handle different result structures
+            if hasattr(result, 'output'):
+                message = result.output
+            elif hasattr(result, 'data'):
+                message = result.data
+            else:
+                message = result
+                
             return [CommitUnit(
                 type=message.commit_type,
                 scope=message.scope,
@@ -120,10 +129,16 @@ Files to analyze:
             + "\n".join(diffs)
         )
         
-        if not result or not hasattr(result, 'data'):
+        if not result:
             raise ValueError("Failed to analyze relationships between changes")
             
-        grouping_result = result.data
+        # Handle different result structures
+        if hasattr(result, 'output'):
+            grouping_result = result.output
+        elif hasattr(result, 'data'):
+            grouping_result = result.data
+        else:
+            grouping_result = result
         
         # Generate commit messages for each unit
         commit_units = []
@@ -134,7 +149,13 @@ Files to analyze:
             if not result:
                 continue
                 
-            commit_analysis = result.data if hasattr(result, 'data') else result
+            # Handle different result structures
+            if hasattr(result, 'output'):
+                commit_analysis = result.output
+            elif hasattr(result, 'data'):
+                commit_analysis = result.data
+            else:
+                commit_analysis = result
             body = commit_analysis.reasoning if commit_analysis.reasoning else ""
             
             commit_unit = CommitUnit(

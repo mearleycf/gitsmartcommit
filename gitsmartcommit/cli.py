@@ -7,7 +7,7 @@ from .core import ChangeAnalyzer, GitCommitter
 from .commit_message import ConventionalCommitStrategy, SimpleCommitStrategy
 from .observers import ConsoleLogObserver, FileLogObserver
 from .config import Config
-from .factories import ClaudeAgentFactory, GeminiAgentFactory
+from .factories import ClaudeAgentFactory, GeminiAgentFactory, QwenAgentFactory
 from typing import Optional
 import pyperclip
 import os
@@ -20,6 +20,8 @@ def get_agent_factory(model: str, api_key: Optional[str] = None):
         return ClaudeAgentFactory(model=model)
     elif model.startswith('google:') or model.startswith('gemini-'):
         return GeminiAgentFactory(model=model, api_key=api_key)
+    elif model.startswith('qwen:') or 'qwen' in model.lower():
+        return QwenAgentFactory(model=model, api_key=api_key)
     else:
         # Default to Claude if no specific prefix
         return ClaudeAgentFactory(model=model)
@@ -78,9 +80,9 @@ def get_agent_factory(model: str, api_key: Optional[str] = None):
 )
 @click.option('--simple', is_flag=True, help='Use simple commit message format instead of conventional commits')
 @click.option('--model', default='claude-3-5-sonnet-latest', 
-              help='AI model to use (e.g. claude-3-5-sonnet-latest, gemini-pro)')
-@click.option('--api-key', envvar=['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'ANTHROPIC_API_KEY'],
-              help='API key for the selected model. Can also be set via environment variables: GEMINI_API_KEY, GOOGLE_API_KEY, or ANTHROPIC_API_KEY')
+              help='AI model to use (e.g. claude-3-5-sonnet-latest, gemini-pro, qwen2.5-coder:7b, ollama:qwen2.5-coder:7b)')
+@click.option('--api-key', envvar=['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'ANTHROPIC_API_KEY', 'QWEN_API_KEY', 'HF_TOKEN'],
+              help='API key for the selected model. Can also be set via environment variables: GEMINI_API_KEY, GOOGLE_API_KEY, ANTHROPIC_API_KEY, QWEN_API_KEY, or HF_TOKEN. Not needed for Ollama models.')
 def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_push: bool, merge: bool, main_branch: str, commit_style: str, log_file: Optional[Path], simple: bool, model: str, api_key: Optional[str]):
     """
     Intelligent Git commit tool that analyzes changes and creates meaningful commits.
