@@ -46,8 +46,8 @@ class Config(BaseModel):
     )
 
     model: str = Field(
-        default="claude-3-5-sonnet-latest",
-        description="AI model to use for generating commit messages (e.g., claude-3-5-sonnet-latest, gemini-pro)"
+        default="qwen2.5-coder:7b",
+        description="AI model to use for generating commit messages (e.g., claude-3-5-sonnet-latest, gemini-pro, qwen2.5-coder:7b)"
     )
     
     @classmethod

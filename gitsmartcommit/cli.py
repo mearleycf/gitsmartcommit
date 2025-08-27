@@ -79,7 +79,7 @@ def get_agent_factory(model: str, api_key: Optional[str] = None):
     help="Optional file to log git operations (overrides config setting)"
 )
 @click.option('--simple', is_flag=True, help='Use simple commit message format instead of conventional commits')
-@click.option('--model', default='claude-3-5-sonnet-latest', 
+@click.option('--model', default='qwen2.5-coder:7b', 
               help='AI model to use (e.g. claude-3-5-sonnet-latest, gemini-pro, qwen2.5-coder:7b, ollama:qwen2.5-coder:7b)')
 @click.option('--api-key', envvar=['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'ANTHROPIC_API_KEY', 'QWEN_API_KEY', 'HF_TOKEN'],
               help='API key for the selected model. Can also be set via environment variables: GEMINI_API_KEY, GOOGLE_API_KEY, ANTHROPIC_API_KEY, QWEN_API_KEY, or HF_TOKEN. Not needed for Ollama models.')
