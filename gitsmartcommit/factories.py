@@ -2,10 +2,84 @@
 from abc import ABC, abstractmethod
 from pydantic_ai import Agent
 import google.generativeai as genai
+import httpx
+import json
+from typing import Optional, Dict, Any
 
 from .models import RelationshipResult, CommitMessageResult
-from .commit_message import CommitMessageGenerator, CommitMessageStrategy, ConventionalCommitStrategy
+from .commit_message import CommitMessageGenerator, CommitMessageStrategy, ConventionalCommitStrategy, OllamaCommitStrategy
 from .prompts import RELATIONSHIP_PROMPT, COMMIT_MESSAGE_PROMPT
+
+class OllamaModel:
+    """Custom model class for Ollama integration."""
+    
+    def __init__(self, model_name: str, base_url: str = "http://localhost:11434"):
+        self.model_name = model_name
+        self.base_url = base_url
+        
+    async def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+        """Generate a response using Ollama API."""
+        url = f"{self.base_url}/api/generate"
+        
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        
+        payload = {
+            "model": self.model_name,
+            "messages": messages,
+            "stream": False
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload, timeout=60.0)
+            response.raise_for_status()
+            result = response.json()
+            return result.get("message", {}).get("content", "")
+
+class OllamaAgent:
+    """Custom agent class for Ollama integration."""
+    
+    def __init__(self, model_name: str, output_type=None, system_prompt: str = None, base_url: str = "http://localhost:11434"):
+        self.model_name = model_name
+        self.output_type = output_type
+        self.system_prompt = system_prompt
+        self.base_url = base_url
+        
+    async def run(self, prompt: str):
+        """Run the agent with the given prompt."""
+        url = f"{self.base_url}/api/generate"
+        
+        messages = []
+        if self.system_prompt:
+            messages.append({"role": "system", "content": self.system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        
+        payload = {
+            "model": self.model_name,
+            "messages": messages,
+            "stream": False
+        }
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload, timeout=60.0)
+                response.raise_for_status()
+                result = response.json()
+                content = result.get("message", {}).get("content", "")
+                
+                # For now, return a simple mock result
+                # In a full implementation, you'd parse the content into the expected output_type
+                class MockResult:
+                    def __init__(self, content):
+                        self.content = content
+                        self.data = self
+                        self.output = self
+                
+                return MockResult(content)
+        except Exception as e:
+            raise Exception(f"Ollama API error: {str(e)}")
 
 class AgentFactory(ABC):
     """Abstract factory for creating agents."""
@@ -76,28 +150,16 @@ class QwenAgentFactory(AgentFactory):
     def create_relationship_agent(self) -> Agent:
         """Create a Qwen agent for analyzing relationships."""
         if self._is_ollama_model():
-            # For Ollama models, try using the model name directly
-            # This might work if pydantic-ai can handle local models
+            # For Ollama models, use our custom Ollama integration
+            # Remove the ollama: prefix if present
             model_name = self.model.replace('ollama:', '') if self.model.startswith('ollama:') else self.model
-            try:
-                return Agent(
-                    model=model_name,
-                    output_type=RelationshipResult,
-                    system_prompt=RELATIONSHIP_PROMPT
-                )
-            except Exception:
-                # If direct model name doesn't work, fall back to HuggingFace
-                # This allows users to still use Ollama models by providing an HF token
-                # Remove the ollama: prefix before creating the HuggingFace model name
-                clean_model_name = self.model.replace('ollama:', '') if self.model.startswith('ollama:') else self.model
-                # Replace colons with hyphens for HuggingFace compatibility
-                clean_model_name = clean_model_name.replace(':', '-')
-                model_name = f"Qwen/{clean_model_name}" if not clean_model_name.startswith("Qwen/") else clean_model_name
-                return Agent(
-                    model=f"huggingface:{model_name}",
-                    output_type=RelationshipResult,
-                    system_prompt=RELATIONSHIP_PROMPT
-                )
+            
+            # Use our custom OllamaAgent instead of pydantic-ai Agent
+            return OllamaAgent(
+                model_name=model_name,
+                output_type=RelationshipResult,
+                system_prompt=RELATIONSHIP_PROMPT
+            )
         else:
             # Use HuggingFace as the provider for Qwen models (requires API token)
             # Replace colons with hyphens for HuggingFace compatibility
@@ -112,18 +174,9 @@ class QwenAgentFactory(AgentFactory):
     def create_commit_strategy(self) -> CommitMessageStrategy:
         """Create a conventional commit strategy using Qwen."""
         if self._is_ollama_model():
-            # For Ollama models, try using the model name directly
+            # For Ollama models, use our custom Ollama commit strategy
             model_name = self.model.replace('ollama:', '') if self.model.startswith('ollama:') else self.model
-            try:
-                return ConventionalCommitStrategy(model=model_name)
-            except Exception:
-                # If direct model name doesn't work, fall back to HuggingFace
-                # Remove the ollama: prefix before creating the HuggingFace model name
-                clean_model_name = self.model.replace('ollama:', '') if self.model.startswith('ollama:') else self.model
-                # Replace colons with hyphens for HuggingFace compatibility
-                clean_model_name = clean_model_name.replace(':', '-')
-                model_name = f"Qwen/{clean_model_name}" if not clean_model_name.startswith("Qwen/") else clean_model_name
-                return ConventionalCommitStrategy(model=f"huggingface:{model_name}")
+            return OllamaCommitStrategy(model_name=model_name)
         else:
             # Use HuggingFace as the provider for Qwen models (requires API token)
             # Replace colons with hyphens for HuggingFace compatibility
