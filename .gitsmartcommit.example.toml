@@ -20,5 +20,5 @@ always_log = false
 log_file = ""
 
 # AI model to use (default: "claude-3-5-sonnet-latest")
-# Options: "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "gemini-pro"
+# Options: "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "gemini-pro", "qwen2.5-coder:7b", "ollama:qwen2.5-coder:7b"
 model = "claude-3-5-sonnet-latest" 
