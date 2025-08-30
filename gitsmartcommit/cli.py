@@ -203,11 +203,7 @@ def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_pu
             
             success = asyncio.run(committer.commit_changes(asyncio.run(analyzer.analyze_changes())))
             
-            # Debug output
-            console.print(f"[dim]Debug: auto_push={auto_push}, config.auto_push={config.auto_push}, success={success}[/dim]")
-            
             if success and (auto_push or config.auto_push):
-                console.print("[dim]Debug: Attempting to push changes...[/dim]")
                 success = asyncio.run(committer.push_changes())
                 
                 if success and merge:
