@@ -5,7 +5,7 @@ A smart Git commit assistant that helps you create better commits by analyzing y
 ## Features
 
 - Analyzes repository changes and groups them into logical units
-- Generates conventional commit messages
+- Generates meaningful conventional commit messages that explain WHY changes were made
 - Supports multiple commit message formats
 - Validates commit messages against best practices
 - Provides undo functionality for git operations
@@ -93,9 +93,38 @@ The tool will:
 
 1. Analyze your repository changes
 2. Group related changes into logical commits
-3. Generate meaningful commit messages
+3. Generate meaningful commit messages that explain WHY changes were made (not just what was changed)
 4. Create the commits (unless --dry-run is used)
 5. Optionally push changes to remote (if --auto-push is used)
+
+## Commit Message Quality
+
+GitSmartCommit is designed to generate high-quality commit messages that follow best practices:
+
+### What Makes a Good Commit Message
+
+- **Explains WHY, not WHAT**: The commit body explains the reasoning behind changes, not just what files were modified
+- **Single Logical Unit**: Each commit represents one complete feature, fix, or improvement
+- **Conventional Format**: Uses conventional commit format with type, scope, and description
+- **Meaningful Context**: Provides context about the purpose, motivation, or problem being solved
+
+### Example of Good vs Bad Commit Messages
+
+**Good:**
+```
+feat(auth): implement JWT-based authentication
+
+Replace basic auth with JWT tokens to enable upcoming SSO integration. This prepares for the planned migration to federated authentication and improves overall system security by removing permanent credential storage.
+```
+
+**Bad:**
+```
+feat(general): update code
+
+Updated 6 files: project_history.md, web/src/pages/index.astro, web/src/pages/recurring-transactions.astro, web/src/styles/global.css, web/src/pages/recurring-transactions/create.astro, web/src/pages/suggestions.astro
+```
+
+The tool analyzes file patterns and changes to generate meaningful reasoning about why changes were made, ensuring that future reviewers understand the context and purpose of each commit.
 
 ## Architecture
 

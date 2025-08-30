@@ -48,10 +48,12 @@ Key Requirements:
    - No period at end
    - Max 50 characters
 5. Message body must:
-   - Explain the reasoning and context
-   - Focus on WHY, not what
+   - Explain the reasoning and context behind the changes
+   - Focus on WHY the changes were made, not what was changed
+   - Explain the purpose, motivation, or problem being solved
    - Wrap at 72 characters
-   - No bullet points
+   - No bullet points or lists
+   - NEVER just list the files that were changed
 
 Please generate a high-quality commit message that follows these requirements exactly."""
 
@@ -102,7 +104,7 @@ Please generate a high-quality commit message that follows these requirements ex
                     commit_type=type_part,
                     scope=scope_part,
                     description=description_part,
-                    reasoning=body or f"Changes made to {len(changes)} files",
+                    reasoning=body or self._generate_meaningful_reasoning(changes),
                     related_files=[change.path for change in changes]
                 )
         except Exception as e:
@@ -111,10 +113,73 @@ Please generate a high-quality commit message that follows these requirements ex
                 commit_type="feat",
                 scope="general",
                 description="update code",
-                reasoning=f"Changes made to {len(changes)} files",
+                reasoning=self._generate_meaningful_reasoning(changes),
                 related_files=[change.path for change in changes]
             )
     
+    def _generate_meaningful_reasoning(self, changes: List[FileChange]) -> str:
+        """Generate meaningful reasoning about why changes were made."""
+        file_paths = [change.path for change in changes]
+        
+        # Analyze file patterns to understand the purpose
+        patterns = {
+            'frontend': ['src/', 'pages/', 'components/', '.astro', '.jsx', '.tsx', '.vue', '.css'],
+            'backend': ['api/', 'server/', '.py', '.java', '.go', '.rb'],
+            'database': ['.sql', 'migration', 'schema'],
+            'testing': ['test', 'spec', '__tests__', '.test.', '.spec.'],
+            'documentation': ['README', 'CHANGELOG', 'docs/', '.md'],
+            'configuration': ['.config.', '.json', '.yaml', '.yml', '.toml', '.env'],
+            'deployment': ['.github/', 'jenkins', 'travis', 'gitlab-ci', 'docker', 'kubernetes'],
+            'styling': ['.css', '.scss', '.sass', '.less', 'styles/'],
+            'routing': ['pages/', 'routes/', 'router/']
+        }
+        
+        # Categorize files
+        categories = {}
+        for change in changes:
+            path = change.path.lower()
+            for category, pattern_list in patterns.items():
+                if any(pattern in path for pattern in pattern_list):
+                    if category not in categories:
+                        categories[category] = []
+                    categories[category].append(change.path)
+                    break
+        
+        # Generate reasoning based on categories
+        if len(categories) == 1:
+            category = list(categories.keys())[0]
+            if category == 'frontend':
+                return f"Update frontend components and styling to improve user experience and interface consistency."
+            elif category == 'backend':
+                return f"Enhance backend functionality and improve system performance and reliability."
+            elif category == 'database':
+                return f"Update database schema and queries to support new features and improve data integrity."
+            elif category == 'testing':
+                return f"Improve test coverage and ensure code quality through comprehensive testing."
+            elif category == 'documentation':
+                return f"Update documentation to reflect current system state and improve developer experience."
+            elif category == 'configuration':
+                return f"Update configuration settings to optimize system behavior and enable new features."
+            elif category == 'deployment':
+                return f"Update deployment configuration to improve CI/CD pipeline and deployment reliability."
+            elif category == 'styling':
+                return f"Improve visual design and user interface consistency across the application."
+            elif category == 'routing':
+                return f"Update application routing to support new pages and improve navigation structure."
+        elif len(categories) > 1:
+            # Multiple categories - focus on the most significant
+            if 'frontend' in categories and 'styling' in categories:
+                return f"Enhance frontend functionality and improve user interface design for better user experience."
+            elif 'backend' in categories and 'database' in categories:
+                return f"Improve backend functionality and update data layer to support enhanced features."
+            elif 'testing' in categories:
+                return f"Update implementation and corresponding tests to ensure code quality and reliability."
+            else:
+                return f"Implement cross-cutting improvements across multiple system components to enhance overall functionality."
+        else:
+            # No specific patterns detected
+            return f"Update application code to improve functionality and maintain code quality."
+
     def _generate_fallback_message(self, changes: List[FileChange], context: str) -> CommitMessageResult:
         """Generate a fallback commit message when Ollama is not available."""
         # Analyze the changes to generate a meaningful message
@@ -144,7 +209,7 @@ Please generate a high-quality commit message that follows these requirements ex
             description = "add AI model integration"
         
         # Generate reasoning based on the changes
-        reasoning = f"Updated {len(changes)} files: {', '.join(file_paths)}"
+        reasoning = self._generate_meaningful_reasoning(changes)
         
         return CommitMessageResult(
             commit_type=commit_type,
@@ -163,6 +228,69 @@ class ConventionalCommitStrategy(CommitMessageStrategy):
             output_type=CommitMessageResult,
             system_prompt=COMMIT_MESSAGE_PROMPT
         )
+    
+    def _generate_meaningful_reasoning(self, changes: List[FileChange]) -> str:
+        """Generate meaningful reasoning about why changes were made."""
+        file_paths = [change.path for change in changes]
+        
+        # Analyze file patterns to understand the purpose
+        patterns = {
+            'frontend': ['src/', 'pages/', 'components/', '.astro', '.jsx', '.tsx', '.vue', '.css'],
+            'backend': ['api/', 'server/', '.py', '.java', '.go', '.rb'],
+            'database': ['.sql', 'migration', 'schema'],
+            'testing': ['test', 'spec', '__tests__', '.test.', '.spec.'],
+            'documentation': ['README', 'CHANGELOG', 'docs/', '.md'],
+            'configuration': ['.config.', '.json', '.yaml', '.yml', '.toml', '.env'],
+            'deployment': ['.github/', 'jenkins', 'travis', 'gitlab-ci', 'docker', 'kubernetes'],
+            'styling': ['.css', '.scss', '.sass', '.less', 'styles/'],
+            'routing': ['pages/', 'routes/', 'router/']
+        }
+        
+        # Categorize files
+        categories = {}
+        for change in changes:
+            path = change.path.lower()
+            for category, pattern_list in patterns.items():
+                if any(pattern in path for pattern in pattern_list):
+                    if category not in categories:
+                        categories[category] = []
+                    categories[category].append(change.path)
+                    break
+        
+        # Generate reasoning based on categories
+        if len(categories) == 1:
+            category = list(categories.keys())[0]
+            if category == 'frontend':
+                return f"Update frontend components and styling to improve user experience and interface consistency."
+            elif category == 'backend':
+                return f"Enhance backend functionality and improve system performance and reliability."
+            elif category == 'database':
+                return f"Update database schema and queries to support new features and improve data integrity."
+            elif category == 'testing':
+                return f"Improve test coverage and ensure code quality through comprehensive testing."
+            elif category == 'documentation':
+                return f"Update documentation to reflect current system state and improve developer experience."
+            elif category == 'configuration':
+                return f"Update configuration settings to optimize system behavior and enable new features."
+            elif category == 'deployment':
+                return f"Update deployment configuration to improve CI/CD pipeline and deployment reliability."
+            elif category == 'styling':
+                return f"Improve visual design and user interface consistency across the application."
+            elif category == 'routing':
+                return f"Update application routing to support new pages and improve navigation structure."
+        elif len(categories) > 1:
+            # Multiple categories - focus on the most significant
+            if 'frontend' in categories and 'styling' in categories:
+                return f"Enhance frontend functionality and improve user interface design for better user experience."
+            elif 'backend' in categories and 'database' in categories:
+                return f"Improve backend functionality and update data layer to support enhanced features."
+            elif 'testing' in categories:
+                return f"Update implementation and corresponding tests to ensure code quality and reliability."
+            else:
+                return f"Implement cross-cutting improvements across multiple system components to enhance overall functionality."
+        else:
+            # No specific patterns detected
+            return f"Update application code to improve functionality and maintain code quality."
     
     async def generate_message(self, changes: List[FileChange], context: str) -> CommitMessageResult:
         changes_desc = []
@@ -189,10 +317,12 @@ Key Requirements:
    - No period at end
    - Max 50 characters
 5. Message body must:
-   - Explain the reasoning and context
-   - Focus on WHY, not what
+   - Explain the reasoning and context behind the changes
+   - Focus on WHY the changes were made, not what was changed
+   - Explain the purpose, motivation, or problem being solved
    - Wrap at 72 characters
-   - No bullet points
+   - No bullet points or lists
+   - NEVER just list the files that were changed
 
 Please generate a high-quality commit message that follows these requirements exactly."""
 
@@ -221,6 +351,69 @@ class SimpleCommitStrategy(CommitMessageStrategy):
             Focus on clarity and brevity while still explaining the purpose of the changes."""
         )
     
+    def _generate_meaningful_reasoning(self, changes: List[FileChange]) -> str:
+        """Generate meaningful reasoning about why changes were made."""
+        file_paths = [change.path for change in changes]
+        
+        # Analyze file patterns to understand the purpose
+        patterns = {
+            'frontend': ['src/', 'pages/', 'components/', '.astro', '.jsx', '.tsx', '.vue', '.css'],
+            'backend': ['api/', 'server/', '.py', '.java', '.go', '.rb'],
+            'database': ['.sql', 'migration', 'schema'],
+            'testing': ['test', 'spec', '__tests__', '.test.', '.spec.'],
+            'documentation': ['README', 'CHANGELOG', 'docs/', '.md'],
+            'configuration': ['.config.', '.json', '.yaml', '.yml', '.toml', '.env'],
+            'deployment': ['.github/', 'jenkins', 'travis', 'gitlab-ci', 'docker', 'kubernetes'],
+            'styling': ['.css', '.scss', '.sass', '.less', 'styles/'],
+            'routing': ['pages/', 'routes/', 'router/']
+        }
+        
+        # Categorize files
+        categories = {}
+        for change in changes:
+            path = change.path.lower()
+            for category, pattern_list in patterns.items():
+                if any(pattern in path for pattern in pattern_list):
+                    if category not in categories:
+                        categories[category] = []
+                    categories[category].append(change.path)
+                    break
+        
+        # Generate reasoning based on categories
+        if len(categories) == 1:
+            category = list(categories.keys())[0]
+            if category == 'frontend':
+                return f"Update frontend components and styling to improve user experience and interface consistency."
+            elif category == 'backend':
+                return f"Enhance backend functionality and improve system performance and reliability."
+            elif category == 'database':
+                return f"Update database schema and queries to support new features and improve data integrity."
+            elif category == 'testing':
+                return f"Improve test coverage and ensure code quality through comprehensive testing."
+            elif category == 'documentation':
+                return f"Update documentation to reflect current system state and improve developer experience."
+            elif category == 'configuration':
+                return f"Update configuration settings to optimize system behavior and enable new features."
+            elif category == 'deployment':
+                return f"Update deployment configuration to improve CI/CD pipeline and deployment reliability."
+            elif category == 'styling':
+                return f"Improve visual design and user interface consistency across the application."
+            elif category == 'routing':
+                return f"Update application routing to support new pages and improve navigation structure."
+        elif len(categories) > 1:
+            # Multiple categories - focus on the most significant
+            if 'frontend' in categories and 'styling' in categories:
+                return f"Enhance frontend functionality and improve user interface design for better user experience."
+            elif 'backend' in categories and 'database' in categories:
+                return f"Improve backend functionality and update data layer to support enhanced features."
+            elif 'testing' in categories:
+                return f"Update implementation and corresponding tests to ensure code quality and reliability."
+            else:
+                return f"Implement cross-cutting improvements across multiple system components to enhance overall functionality."
+        else:
+            # No specific patterns detected
+            return f"Update application code to improve functionality and maintain code quality."
+    
     async def generate_message(self, changes: List[FileChange], context: str) -> CommitMessageResult:
         changes_desc = []
         for change in changes:
@@ -237,10 +430,12 @@ Context:
 
 Requirements:
 1. Keep the message clear and concise
-2. Explain the purpose of the changes
-3. Use present tense
-4. Keep subject line under 50 characters
-5. Add a brief body explaining the context if needed
+2. Explain the purpose and reasoning behind the changes
+3. Focus on WHY the changes were made, not what was changed
+4. Use present tense
+5. Keep subject line under 50 characters
+6. Add a brief body explaining the context and motivation if needed
+7. NEVER just list the files that were changed
 
 Please generate a clear commit message that follows these requirements."""
 

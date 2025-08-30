@@ -19,6 +19,7 @@ Key Principles:
 1. Each commit should represent ONE logical unit of work
 2. Commit messages should explain WHY changes were made, not WHAT was changed
 3. Future reviewers should understand the context and purpose from the message
+4. The commit body should provide meaningful context about the reasoning behind changes
 
 Message Format Rules:
 1. Use conventional commit format: type(scope): description
@@ -28,11 +29,13 @@ Message Format Rules:
    - No period at end
    - Max 50 characters
 3. Message body:
-   - Explain the reasoning and context
-   - Focus on WHY, not what (changes are visible in the diff)
+   - Explain the reasoning and context behind the changes
+   - Focus on WHY the changes were made, not what was changed (changes are visible in the diff)
+   - Explain the purpose, motivation, or problem being solved
    - No bullet points or lists
    - Wrap at 72 characters
    - Discuss impact and implications
+   - NEVER just list the files that were changed
 4. For breaking changes:
    - Start body with "BREAKING CHANGE:"
    - Explain migration path
@@ -56,6 +59,10 @@ fix(api): handle legacy service null responses
 
 Prevent customer-visible errors when the legacy inventory service returns unexpected null values. This addresses a critical issue affecting high-volume customers during peak hours.
 ---
+feat(ui): enhance user dashboard layout
+
+Improve the user experience by reorganizing the dashboard layout to prioritize frequently used features. This change addresses user feedback about navigation complexity and reduces the number of clicks needed to access common actions.
+---
 
 Bad Message Examples:
 ---
@@ -69,5 +76,9 @@ feat(api): add new endpoint and update tests
 - Updated user tests
 - Fixed validation
 - Added documentation
+---
+feat(general): update code
+
+Updated 6 files: project_history.md, web/src/pages/index.astro, web/src/pages/recurring-transactions.astro, web/src/styles/global.css, web/src/pages/recurring-transactions/create.astro, web/src/pages/suggestions.astro
 ---
 '''
