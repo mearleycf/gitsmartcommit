@@ -358,7 +358,12 @@ class PushCommand(GitCommand):
                 current_branch = self.repo.active_branch
                 
                 # Store current commit hash for potential undo
-                self.pushed_commits = [c.hexsha for c in self.repo.iter_commits(f"{current_branch.name}@{{u}}..{current_branch.name}")]
+                # Only try to get commits if upstream is configured
+                try:
+                    self.pushed_commits = [c.hexsha for c in self.repo.iter_commits(f"{current_branch.name}@{{u}}..{current_branch.name}")]
+                except Exception:
+                    # No upstream configured yet, we'll set it up below
+                    self.pushed_commits = []
                 
                 # Check if branch has upstream tracking
                 try:
