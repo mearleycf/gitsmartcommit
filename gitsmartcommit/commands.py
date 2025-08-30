@@ -370,18 +370,14 @@ class PushCommand(GitCommand):
                             # First try to push and set upstream
                             remote.push(f"{current_branch.name}:refs/heads/{current_branch.name}", set_upstream=True)
                             success = True
-                        except Exception as e:
-                            if "remote ref does not exist" in str(e):
-                                # Remote branch doesn't exist, give clear instructions
-                                self.console.print(
-                                    f"[red]Branch '{current_branch.name}' does not exist on remote.\n"
-                                    "To create it, run:[/red]\n"
-                                    f"[yellow]git push --set-upstream origin {current_branch.name}[/yellow]"
-                                )
-                            else:
-                                # Some other push error
-                                self.console.print(f"[red]Failed to push changes: {str(e)}[/red]")
-                            success = False
+                        except Exception as push_error:
+                            # If the above fails, try the standard git push --set-upstream
+                            try:
+                                self.repo.git.push('--set-upstream', 'origin', current_branch.name)
+                                success = True
+                            except Exception as git_error:
+                                self.console.print(f"[red]Failed to push and set upstream: {str(git_error)}[/red]")
+                                success = False
                     else:
                         # Branch has tracking, do normal push
                         remote.push()
