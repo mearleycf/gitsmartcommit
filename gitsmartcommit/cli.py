@@ -187,6 +187,12 @@ def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_pu
             if log_file_path:
                 committer.add_observer(FileLogObserver(str(log_file_path)))
             
+            # Set upstream before committing
+            console.print("\n[blue]Checking upstream branch...[/blue]")
+            upstream_success = asyncio.run(committer.set_upstream())
+            if not upstream_success:
+                console.print("[yellow]Warning: Failed to set upstream branch. Continuing with commits...[/yellow]")
+            
             success = asyncio.run(committer.commit_changes(asyncio.run(analyzer.analyze_changes())))
             
             if success and (auto_push or config.auto_push):

@@ -13,7 +13,7 @@ from .commit_message import CommitMessageGenerator, CommitMessageStrategy
 from .observers import GitOperationObserver
 from .prompts import RELATIONSHIP_PROMPT, COMMIT_MESSAGE_PROMPT
 from .factories import AgentFactory, ClaudeAgentFactory
-from .commands import GitCommand, CommitCommand, PushCommand, MergeCommand
+from .commands import GitCommand, CommitCommand, PushCommand, MergeCommand, SetUpstreamCommand
 
 @dataclass
 class GitDependencies:
@@ -209,6 +209,15 @@ class GitCommitter:
         
         command = self.command_history.pop()
         return await command.undo()
+    
+    async def set_upstream(self) -> bool:
+        """Set the upstream branch if not already set.
+        
+        Returns:
+            bool: True if the operation was successful, False otherwise
+        """
+        command = SetUpstreamCommand(self.repo, self.console)
+        return await self.execute_command(command)
     
     async def commit_changes(self, commit_units: List[CommitUnit]) -> bool:
         """Create commits for each commit unit using the Command Pattern."""
