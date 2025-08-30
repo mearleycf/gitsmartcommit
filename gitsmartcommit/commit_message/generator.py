@@ -4,14 +4,16 @@ from pathlib import Path
 from git import Repo
 
 from ..models import FileChange, CommitMessageResult
-from .strategy import CommitMessageStrategy, ConventionalCommitStrategy
+from .strategy import CommitMessageStrategy, ConventionalCommitStrategy, OllamaCommitStrategy
 from .validator import CommitMessageValidator
 
 class CommitMessageGenerator:
     """Enhanced commit message generator with validation and context enrichment."""
     
     def __init__(self, strategy: Optional[CommitMessageStrategy] = None):
-        self.strategy = strategy or ConventionalCommitStrategy()
+        if strategy is None:
+            raise ValueError("Strategy must be provided to CommitMessageGenerator")
+        self.strategy = strategy
         self.validator = CommitMessageValidator()
         
     def _enrich_context(self, changes: List[FileChange], repo: Repo) -> str:

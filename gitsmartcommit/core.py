@@ -119,15 +119,14 @@ class ChangeAnalyzer:
         for change in changes:
             diffs.append(f"Changes in {change.path}:\n{change.content_diff}")
         
-        result = await self.relationship_agent.run(
-            """Please analyze these files and group related changes based on logical units of work. 
+        prompt = """Please analyze these files and group related changes based on logical units of work. 
 A single logical unit means changes that work together to achieve one goal. 
 For example: implementation files with their tests, or configuration files that support a feature.
 
 Files to analyze:
-"""
-            + "\n".join(diffs)
-        )
+""" + "\n".join(diffs)
+        
+        result = await self.relationship_agent.run(prompt)
         
         if not result:
             raise ValueError("Failed to analyze relationships between changes")

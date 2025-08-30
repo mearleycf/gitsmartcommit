@@ -76,6 +76,11 @@ Please generate a high-quality commit message that follows these requirements ex
                 result = response.json()
                 content = result.get("message", {}).get("content", "")
                 
+                # Check if we got a valid response
+                if not content or len(content.strip()) == 0:
+                    # Generate a fallback commit message based on the changes
+                    return self._generate_fallback_message(changes, context)
+                
                 # Parse the response to extract commit message components
                 lines = content.strip().split('\n')
                 subject_line = lines[0] if lines else "feat: update code"
@@ -94,19 +99,60 @@ Please generate a high-quality commit message that follows these requirements ex
                 body = '\n'.join(lines[1:]).strip() if len(lines) > 1 else ""
                 
                 return CommitMessageResult(
-                    type=type_part,
+                    commit_type=type_part,
                     scope=scope_part,
                     description=description_part,
-                    body=body
+                    reasoning=body or f"Changes made to {len(changes)} files",
+                    related_files=[change.path for change in changes]
                 )
         except Exception as e:
             # Fallback to a simple commit message
             return CommitMessageResult(
-                type="feat",
+                commit_type="feat",
                 scope="general",
                 description="update code",
-                body=f"Changes made to {len(changes)} files"
+                reasoning=f"Changes made to {len(changes)} files",
+                related_files=[change.path for change in changes]
             )
+    
+    def _generate_fallback_message(self, changes: List[FileChange], context: str) -> CommitMessageResult:
+        """Generate a fallback commit message when Ollama is not available."""
+        # Analyze the changes to generate a meaningful message
+        file_paths = [change.path for change in changes]
+        
+        # Determine commit type based on file patterns
+        commit_type = "feat"
+        scope = "general"
+        description = "update code"
+        
+        # Look for patterns in file paths to determine the type of changes
+        if any("test" in path.lower() for path in file_paths):
+            commit_type = "test"
+            scope = "testing"
+            description = "add or update tests"
+        elif any("doc" in path.lower() or "readme" in path.lower() for path in file_paths):
+            commit_type = "docs"
+            scope = "documentation"
+            description = "update documentation"
+        elif any("config" in path.lower() or "toml" in path.lower() for path in file_paths):
+            commit_type = "chore"
+            scope = "config"
+            description = "update configuration"
+        elif any("factory" in path.lower() or "strategy" in path.lower() for path in file_paths):
+            commit_type = "feat"
+            scope = "ai-integration"
+            description = "add AI model integration"
+        
+        # Generate reasoning based on the changes
+        reasoning = f"Updated {len(changes)} files: {', '.join(file_paths)}"
+        
+        return CommitMessageResult(
+            commit_type=commit_type,
+            scope=scope,
+            description=description,
+            reasoning=reasoning,
+            related_files=file_paths
+        )
 
 class ConventionalCommitStrategy(CommitMessageStrategy):
     """Strategy for generating conventional commit messages."""

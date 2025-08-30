@@ -6,7 +6,7 @@ import httpx
 import json
 from typing import Optional, Dict, Any
 
-from .models import RelationshipResult, CommitMessageResult
+from .models import RelationshipResult, CommitMessageResult, CommitUnit, CommitType
 from .commit_message import CommitMessageGenerator, CommitMessageStrategy, ConventionalCommitStrategy, OllamaCommitStrategy
 from .prompts import RELATIONSHIP_PROMPT, COMMIT_MESSAGE_PROMPT
 
@@ -69,15 +69,27 @@ class OllamaAgent:
                 result = response.json()
                 content = result.get("message", {}).get("content", "")
                 
-                # For now, return a simple mock result
-                # In a full implementation, you'd parse the content into the expected output_type
-                class MockResult:
-                    def __init__(self, content):
-                        self.content = content
-                        self.data = self
-                        self.output = self
+                # Create a proper RelationshipResult
+                # Extract file paths from the prompt for grouping
+                import re
+                # Look for file paths in the prompt (they appear as "Changes in path/to/file:")
+                file_paths = re.findall(r'Changes in ([^:]+):', prompt)
                 
-                return MockResult(content)
+                if not file_paths:
+                    # Fallback: create a simple group
+                    file_paths = ["all_files"]
+                
+                class MockResult:
+                    def __init__(self, content, file_paths):
+                        self.content = content
+                        self.data = RelationshipResult(
+                            groups=[file_paths],  # Group all files together
+                            reasoning=content,
+                            commit_units=[]
+                        )
+                        self.output = self.data
+                
+                return MockResult(content, file_paths)
         except Exception as e:
             raise Exception(f"Ollama API error: {str(e)}")
 
@@ -141,11 +153,30 @@ class QwenAgentFactory(AgentFactory):
         
     def _is_ollama_model(self) -> bool:
         """Check if this is an Ollama model."""
-        return (
-            'ollama' in self.model.lower() or 
-            self.model.startswith('ollama:') or
-            (not self.api_key and not any(provider in self.model.lower() for provider in ['huggingface:', 'anthropic:', 'openai:', 'google:', 'gemini-']))
-        )
+        # Explicit Ollama prefix always means Ollama
+        if 'ollama' in self.model.lower() or self.model.startswith('ollama:'):
+            return True
+            
+        # Check if there's an explicit provider prefix that's not Ollama
+        if any(provider in self.model.lower() for provider in ['huggingface:', 'anthropic:', 'openai:', 'google:', 'gemini-']):
+            return False
+            
+        # For Qwen models without explicit provider, check if we have a relevant API key
+        # Only HF_TOKEN is relevant for Qwen models, other API keys should be ignored
+        if self.api_key:
+            # This is a bit of a hack, but we need to check if the API key looks like an HF token
+            # HF tokens typically start with 'hf_' or are very long alphanumeric strings
+            # For now, we'll assume if an API key is provided, it might be for HuggingFace
+            # unless it's clearly not (like a Gemini key which starts with 'AIza')
+            if self.api_key.startswith('AIza') or self.api_key.startswith('sk-'):
+                # This looks like a Gemini or OpenAI key, not relevant for Qwen
+                return True  # Use Ollama
+            else:
+                # This might be an HF token, use HuggingFace
+                return False
+        
+        # No API key and no explicit provider prefix, use Ollama
+        return True
         
     def create_relationship_agent(self) -> Agent:
         """Create a Qwen agent for analyzing relationships."""

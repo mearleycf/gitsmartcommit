@@ -156,6 +156,9 @@ def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_pu
             config.log_file = str(log_file)
         if model is not None:
             config.model = model
+        else:
+            # Use default model if no --model specified
+            config.model = 'qwen2.5-coder:7b'
         
         # Create the appropriate factory based on model selection
         factory = get_agent_factory(config.model, api_key)
