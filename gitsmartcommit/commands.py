@@ -357,9 +357,6 @@ class PushCommand(GitCommand):
                 remote = self.repo.remote()
                 current_branch = self.repo.active_branch
                 
-                # Store current commit hash for potential undo
-                self.pushed_commits = [c.hexsha for c in self.repo.iter_commits(f"{current_branch.name}@{{u}}..{current_branch.name}")]
-                
                 # Check if branch has upstream tracking
                 try:
                     tracking_branch = current_branch.tracking_branch()
@@ -386,6 +383,13 @@ class PushCommand(GitCommand):
                         # Branch has tracking, do normal push
                         remote.push()
                         success = True
+                        
+                    # Store current commit hash for potential undo (only after upstream is set)
+                    if success and tracking_branch is not None:
+                        self.pushed_commits = [c.hexsha for c in self.repo.iter_commits(f"{current_branch.name}@{{u}}..{current_branch.name}")]
+                    elif success:
+                        # For new branches, store all commits since we're pushing everything
+                        self.pushed_commits = [c.hexsha for c in self.repo.iter_commits(f"{current_branch.name}")]
                 except Exception as e:
                     self.console.print(f"[red]Failed to push changes: {str(e)}[/red]")
                     success = False
