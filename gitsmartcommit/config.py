@@ -31,7 +31,7 @@ class Config(BaseModel):
     )
     
     auto_push: bool = Field(
-        default=False,
+        default=True,
         description="Whether to automatically push changes after committing"
     )
     

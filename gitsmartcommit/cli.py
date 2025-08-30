@@ -57,6 +57,11 @@ def get_agent_factory(model: str, api_key: Optional[str] = None):
     help="Automatically push changes after committing (overrides config setting)"
 )
 @click.option(
+    '--no-push',
+    is_flag=True,
+    help="Don't push changes after committing (overrides config setting)"
+)
+@click.option(
     '-m',
     '--merge',
     is_flag=True,
@@ -83,7 +88,7 @@ def get_agent_factory(model: str, api_key: Optional[str] = None):
               help='AI model to use (e.g. claude-3-5-sonnet-latest, gemini-pro, qwen2.5-coder:7b, ollama:qwen2.5-coder:7b)')
 @click.option('--api-key', envvar=['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'ANTHROPIC_API_KEY', 'QWEN_API_KEY', 'HF_TOKEN'],
               help='API key for the selected model. Can also be set via environment variables: GEMINI_API_KEY, GOOGLE_API_KEY, ANTHROPIC_API_KEY, QWEN_API_KEY, or HF_TOKEN. Not needed for Ollama models.')
-def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_push: bool, merge: bool, main_branch: str, commit_style: str, log_file: Optional[Path], simple: bool, model: str, api_key: Optional[str]):
+def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_push: bool, no_push: bool, merge: bool, main_branch: str, commit_style: str, log_file: Optional[Path], simple: bool, model: str, api_key: Optional[str]):
     """
     Intelligent Git commit tool that analyzes changes and creates meaningful commits.
     
@@ -91,8 +96,9 @@ def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_pu
     1. Analyze your repository changes
     2. Group related changes into logical commits
     3. Generate meaningful commit messages
-    4. Optionally push changes to remote
-    5. Optionally merge changes into main branch
+    4. Create the commits (unless --dry-run is used)
+    5. Automatically push changes to remote (unless --no-push is used)
+    6. Optionally merge changes into main branch
     
     Configuration can be set in .gitsmartcommit.toml in the repository root.
     Command line options override configuration file settings.
@@ -152,6 +158,8 @@ def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_pu
             config.commit_style = commit_style
         if auto_push:
             config.auto_push = True
+        if no_push:
+            config.auto_push = False
         if log_file is not None:
             config.log_file = str(log_file)
         if model is not None:

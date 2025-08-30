@@ -67,20 +67,20 @@ git-smart-commit --help
 ## Examples
 
 ```bash
-# Basic usage - analyze and commit changes
+# Basic usage - analyze, commit, and push changes
 git-smart-commit
 
-# Dry run to see proposed commits
+# Dry run to see proposed commits (no actual commits or pushes)
 git-smart-commit -d
 
-# Auto-push changes after committing
-git-smart-commit -a
+# Commit without pushing (override default auto-push)
+git-smart-commit --no-push
 
-# Auto-push and merge into main branch
-git-smart-commit -a -m
+# Merge into main branch after pushing
+git-smart-commit -m
 
-# Auto-push and merge into a different main branch
-git-smart-commit -a -m --main-branch develop
+# Merge into a different main branch after pushing
+git-smart-commit -m --main-branch develop
 
 # Use simple commit style instead of conventional commits
 git-smart-commit -c simple
@@ -95,7 +95,7 @@ The tool will:
 2. Group related changes into logical commits
 3. Generate meaningful commit messages that explain WHY changes were made (not just what was changed)
 4. Create the commits (unless --dry-run is used)
-5. Optionally push changes to remote (if --auto-push is used)
+5. Automatically push changes to remote (unless --no-push is used)
 
 ## Commit Message Quality
 
@@ -155,7 +155,7 @@ commit_style = "conventional"
 # Name of the remote repository (default: "origin")
 remote_name = "origin"
 
-# Whether to automatically push changes after committing (default: false)
+# Whether to automatically push changes after committing (default: true)
 auto_push = true
 
 # Whether to always generate log files (default: false)
