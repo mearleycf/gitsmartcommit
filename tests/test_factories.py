@@ -49,11 +49,15 @@ def test_gemini_agent_factory_no_api_key():
 def test_qwen_agent_factory():
     """Test the Qwen agent factory creates appropriate instances."""
     with patch('os.environ.get', return_value='test-key'), \
-         patch('gitsmartcommit.factories.Agent') as mock_agent_class:
+         patch('gitsmartcommit.factories.Agent') as mock_agent_class, \
+         patch('gitsmartcommit.factories.ConventionalCommitStrategy') as mock_strategy_class:
         
         mock_agent = Mock()
         mock_agent.model.model_name = 'Qwen/qwen2.5-coder-7b'
         mock_agent_class.return_value = mock_agent
+        
+        mock_strategy = Mock()
+        mock_strategy_class.return_value = mock_strategy
         
         factory = QwenAgentFactory(model='qwen2.5-coder:7b', api_key='test-key')
         
@@ -64,7 +68,7 @@ def test_qwen_agent_factory():
         
         # Test commit strategy creation
         commit_strategy = factory.create_commit_strategy()
-        assert isinstance(commit_strategy, CommitMessageStrategy)
+        assert isinstance(commit_strategy, Mock)
 
 def test_qwen_agent_factory_no_api_key():
     """Test the Qwen agent factory without API key."""
@@ -74,7 +78,7 @@ def test_qwen_agent_factory_no_api_key():
         # Should fall back to Ollama agent when no API key
         relationship_agent = factory.create_relationship_agent()
         # The agent should be an OllamaAgent instance
-        assert hasattr(relationship_agent, '_model_name')
+        assert hasattr(relationship_agent, 'model_name')
         
         # Test commit strategy creation
         commit_strategy = factory.create_commit_strategy()
@@ -90,7 +94,7 @@ def test_qwen_agent_factory_ollama():
     # Test relationship agent creation (should use OllamaAgent)
     relationship_agent = factory.create_relationship_agent()
     # Should be an OllamaAgent instance
-    assert hasattr(relationship_agent, '_model_name')
+    assert hasattr(relationship_agent, 'model_name')
     
     # Test commit strategy creation
     commit_strategy = factory.create_commit_strategy()

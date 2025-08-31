@@ -9,7 +9,6 @@ from rich.console import Console
 from gitsmartcommit.commands import GitCommand, CommitCommand, PushCommand, MergeCommand
 from gitsmartcommit.models import CommitType, CommitUnit
 from gitsmartcommit.observers import GitOperationObserver
-from .test_core import temp_git_repo
 
 @pytest.fixture
 def mock_console():

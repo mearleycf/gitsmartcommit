@@ -41,6 +41,8 @@ def mock_committer():
         committer_instance.commit_changes = AsyncMock(return_value=True)
         committer_instance.push_changes = AsyncMock(return_value=True)
         committer_instance.merge_to_main = AsyncMock(return_value=True)
+        committer_instance.set_upstream = AsyncMock(return_value=True)
+        committer_instance.add_observer = Mock()
         mock.return_value = committer_instance
         yield mock
 

@@ -14,6 +14,29 @@ import os
 
 console = Console()
 
+def run_async(coro):
+    """Run an async coroutine, handling both test and production environments."""
+    try:
+        # Try to get the current event loop
+        loop = asyncio.get_running_loop()
+        # If we're in a test environment with a running loop, create a task
+        if loop.is_running():
+            # For testing, we'll need to handle this differently
+            # For now, we'll use asyncio.run() but catch the error
+            try:
+                return asyncio.run(coro)
+            except RuntimeError:
+                # If asyncio.run() fails, we're probably in a test environment
+                # Create a new event loop for this coroutine
+                import nest_asyncio
+                nest_asyncio.apply()
+                return asyncio.run(coro)
+        else:
+            return loop.run_until_complete(coro)
+    except RuntimeError:
+        # No event loop running, use asyncio.run()
+        return asyncio.run(coro)
+
 def get_agent_factory(model: str, api_key: Optional[str] = None):
     """Get the appropriate agent factory based on the model name."""
     if model.startswith('anthropic:') or model.startswith('claude-'):
@@ -170,7 +193,8 @@ def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_pu
         strategy = ConventionalCommitStrategy() if config.commit_style == 'conventional' else SimpleCommitStrategy()
         
         # Always show the commit messages
-        for unit in asyncio.run(analyzer.analyze_changes()):
+        commit_units = run_async(analyzer.analyze_changes())
+        for unit in commit_units:
             console.print(f"[green]{unit.type.value}({unit.scope}): {unit.description}[/green]")
             console.print(f"Files: {', '.join(unit.files)}")
             if unit.body:
@@ -189,17 +213,17 @@ def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_pu
             
             # Set upstream before committing
             console.print("\n[blue]Checking upstream branch...[/blue]")
-            upstream_success = asyncio.run(committer.set_upstream())
+            upstream_success = run_async(committer.set_upstream())
             if not upstream_success:
                 console.print("[yellow]Warning: Failed to set upstream branch. Continuing with commits...[/yellow]")
             
-            success = asyncio.run(committer.commit_changes(asyncio.run(analyzer.analyze_changes())))
+            success = run_async(committer.commit_changes(commit_units))
             
             if success and (auto_push or config.auto_push):
-                success = asyncio.run(committer.push_changes())
+                success = run_async(committer.push_changes())
                 
                 if success and merge:
-                    merge_success = asyncio.run(committer.merge_to_main(config.main_branch))
+                    merge_success = run_async(committer.merge_to_main(config.main_branch))
                     if not merge_success:
                         console.print(f"\n[yellow]Note: Changes were pushed but could not be merged into '{config.main_branch}'.[/yellow]")
                         console.print("[yellow]Please ensure the main branch exists and try merging manually.[/yellow]")

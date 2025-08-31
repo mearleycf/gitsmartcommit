@@ -8,25 +8,6 @@ import os
 from gitsmartcommit.core import GitCommitter
 from gitsmartcommit.models import CommitType, CommitUnit
 
-@pytest.fixture
-def temp_git_repo_with_deleted_file():
-    """Create a temporary git repo with a file that will be deleted."""
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        # Initialize git repo
-        repo = Repo.init(tmp_dir)
-        
-        # Create and commit initial file
-        test_file = Path(tmp_dir) / "to_delete.txt"
-        test_file.write_text("Content to delete")
-        
-        repo.index.add(["to_delete.txt"])
-        repo.index.commit("Initial commit")
-        
-        # Delete the file
-        test_file.unlink()
-        
-        yield tmp_dir
-
 @pytest.mark.asyncio
 async def test_commit_deleted_file(temp_git_repo_with_deleted_file):
     # Create a commit unit for the deleted file
