@@ -10,6 +10,14 @@ from gitsmartcommit.models import CommitType, CommitUnit
 
 @pytest.mark.asyncio
 async def test_commit_deleted_file(temp_git_repo_with_deleted_file):
+    # Delete the file first
+    deleted_file = Path(temp_git_repo_with_deleted_file) / "to_delete.txt"
+    deleted_file.unlink()
+    
+    # Stage the deletion
+    repo = Repo(temp_git_repo_with_deleted_file)
+    repo.index.remove(["to_delete.txt"])
+    
     # Create a commit unit for the deleted file
     commit_unit = CommitUnit(
         type=CommitType.CHORE,

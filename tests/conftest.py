@@ -102,20 +102,18 @@ def temp_git_repo_detached_head():
 
 @pytest.fixture
 def temp_git_repo_with_deleted_file():
-    """Create a temporary git repository with a deleted file."""
+    """Create a temporary git repository with a file ready to be deleted."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         repo = Repo.init(tmp_dir)
         
-        # Create a file
+        # Create a file that will be deleted during the test
         test_file = Path(tmp_dir) / "to_delete.txt"
         test_file.write_text("Content to delete")
         repo.index.add(["to_delete.txt"])
         repo.index.commit("Add file to delete")
         
-        # Delete the file
-        test_file.unlink()
-        repo.index.add(["to_delete.txt"])
-        repo.index.commit("Delete file")
+        # The file exists but is not staged for deletion yet
+        # The test will handle the deletion and commit
         
         yield tmp_dir
 

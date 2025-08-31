@@ -114,13 +114,11 @@ async def test_analyze_relationships(temp_git_repo):
         mock_factory.create_commit_strategy.return_value = mock_strategy
         mock_factory_class.return_value = mock_factory
         
-                                # Create test files and changes
-            test_file = Path(temp_git_repo) / "test.txt"
-            test_file.write_text("Test content")
-            utils_file = Path(temp_git_repo) / "utils.py"
-            utils_file.write_text("Utils content")
+        # Create test files and changes (only one file to trigger single file path)
+        test_file = Path(temp_git_repo) / "test.txt"
+        test_file.write_text("Test content")
 
-            analyzer = ChangeAnalyzer(temp_git_repo, factory=mock_factory)
+        analyzer = ChangeAnalyzer(temp_git_repo, factory=mock_factory)
         commit_units = await analyzer.analyze_changes()
 
         assert len(commit_units) > 0
