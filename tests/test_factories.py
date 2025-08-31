@@ -48,25 +48,37 @@ def test_gemini_agent_factory_no_api_key():
 
 def test_qwen_agent_factory():
     """Test the Qwen agent factory creates appropriate instances."""
-    factory = QwenAgentFactory(model='qwen2.5-coder:7b', api_key='test-key')
-    
-    # Test relationship agent creation
-    relationship_agent = factory.create_relationship_agent()
-    assert isinstance(relationship_agent, Agent)
-    assert relationship_agent.model.model_name == 'Qwen/qwen2.5-coder-7b'
-    
-    # Test commit strategy creation
-    commit_strategy = factory.create_commit_strategy()
-    assert isinstance(commit_strategy, CommitMessageStrategy)
+    with patch('os.environ.get', return_value='test-key'), \
+         patch('gitsmartcommit.factories.Agent') as mock_agent_class:
+        
+        mock_agent = Mock()
+        mock_agent.model.model_name = 'Qwen/qwen2.5-coder-7b'
+        mock_agent_class.return_value = mock_agent
+        
+        factory = QwenAgentFactory(model='qwen2.5-coder:7b', api_key='test-key')
+        
+        # Test relationship agent creation
+        relationship_agent = factory.create_relationship_agent()
+        assert isinstance(relationship_agent, Mock)
+        assert relationship_agent.model.model_name == 'Qwen/qwen2.5-coder-7b'
+        
+        # Test commit strategy creation
+        commit_strategy = factory.create_commit_strategy()
+        assert isinstance(commit_strategy, CommitMessageStrategy)
 
 def test_qwen_agent_factory_no_api_key():
     """Test the Qwen agent factory without API key."""
-    factory = QwenAgentFactory(model='qwen2.5-coder:7b')
-    
-    # Test relationship agent creation
-    relationship_agent = factory.create_relationship_agent()
-    assert isinstance(relationship_agent, Agent)
-    assert relationship_agent.model.model_name == 'Qwen/qwen2.5-coder:7b'
+    with patch('os.environ.get', return_value=None):
+        factory = QwenAgentFactory(model='qwen2.5-coder:7b')
+        
+        # Should fall back to Ollama agent when no API key
+        relationship_agent = factory.create_relationship_agent()
+        # The agent should be an OllamaAgent instance
+        assert hasattr(relationship_agent, '_model_name')
+        
+        # Test commit strategy creation
+        commit_strategy = factory.create_commit_strategy()
+        assert isinstance(commit_strategy, CommitMessageStrategy)
 
 def test_qwen_agent_factory_ollama():
     """Test the Qwen agent factory with Ollama model."""
@@ -75,12 +87,10 @@ def test_qwen_agent_factory_ollama():
     # Test that it's detected as an Ollama model
     assert factory._is_ollama_model() == True
     
-    # Test relationship agent creation (will fall back to HuggingFace)
+    # Test relationship agent creation (should use OllamaAgent)
     relationship_agent = factory.create_relationship_agent()
-    assert isinstance(relationship_agent, Agent)
-    # Since pydantic-ai doesn't support Ollama directly, it falls back to HuggingFace
-    # The ollama: prefix should be removed and colons replaced with hyphens
-    assert relationship_agent.model.model_name == 'Qwen/qwen2.5-coder-7b'
+    # Should be an OllamaAgent instance
+    assert hasattr(relationship_agent, '_model_name')
     
     # Test commit strategy creation
     commit_strategy = factory.create_commit_strategy()

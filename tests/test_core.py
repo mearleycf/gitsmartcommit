@@ -117,7 +117,7 @@ async def test_analyze_relationships(temp_git_repo):
     with patch.object(Agent, 'run', new_callable=AsyncMock) as mock_relationship_run, \
          patch.object(CommitMessageGenerator, 'generate_commit_message', new_callable=AsyncMock) as mock_commit_run:
         
-        # Set up relationship mock
+        # Set up relationship mock with proper structure
         mock_relationship_response = Mock()
         mock_relationship_response.data = mock_grouping
         mock_relationship_run.return_value = mock_relationship_response
@@ -265,8 +265,27 @@ async def test_simple_commit_strategy(temp_git_repo):
         is_staged=False
     )
     
-    # Create the strategy
-    strategy = SimpleCommitStrategy()
+    # Create the strategy with mock agent
+    from gitsmartcommit.factories import MockAgentFactory
+    from gitsmartcommit.models import CommitMessageResult, CommitType
+    from gitsmartcommit.commit_message import SimpleCommitStrategy
+    
+    mock_result = CommitMessageResult(
+        commit_type=CommitType.FEAT,
+        scope="test",
+        description="add test functionality",
+        reasoning="This change adds test functionality to improve code coverage",
+        related_files=["test.txt"]
+    )
+    
+    mock_agent = Mock()
+    mock_agent.run = AsyncMock(return_value=Mock(data=mock_result))
+    
+    factory = MockAgentFactory(
+        mock_relationship_agent=mock_agent,
+        mock_commit_strategy=SimpleCommitStrategy()
+    )
+    strategy = factory.create_commit_strategy()
     
     # Generate a message
     result = await strategy.generate_message([change], "Current branch: main")
@@ -293,8 +312,27 @@ async def test_conventional_commit_strategy(temp_git_repo):
         is_staged=False
     )
     
-    # Create the strategy
-    strategy = ConventionalCommitStrategy()
+    # Create the strategy with mock agent
+    from gitsmartcommit.factories import MockAgentFactory
+    from gitsmartcommit.models import CommitMessageResult, CommitType
+    from gitsmartcommit.commit_message import ConventionalCommitStrategy
+    
+    mock_result = CommitMessageResult(
+        commit_type=CommitType.FEAT,
+        scope="test",
+        description="add test functionality",
+        reasoning="This change adds test functionality to improve code coverage",
+        related_files=["test.txt"]
+    )
+    
+    mock_agent = Mock()
+    mock_agent.run = AsyncMock(return_value=Mock(data=mock_result))
+    
+    factory = MockAgentFactory(
+        mock_relationship_agent=mock_agent,
+        mock_commit_strategy=ConventionalCommitStrategy()
+    )
+    strategy = factory.create_commit_strategy()
     
     # Generate a message
     result = await strategy.generate_message([change], "Current branch: main")
