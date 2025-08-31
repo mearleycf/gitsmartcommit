@@ -73,8 +73,18 @@ class ChangeAnalyzer:
         
         # Get untracked files
         for file_path in self.repo.untracked_files:
-            with open(Path(self.repo.working_dir) / file_path, 'r') as f:
-                content = f.read()
+            full_path = Path(self.repo.working_dir) / file_path
+            try:
+                # Try to read as text first
+                with open(full_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            except (UnicodeDecodeError, UnicodeError):
+                # If it's a binary file, just indicate that it's binary
+                content = f"[Binary file: {file_path}]"
+            except Exception:
+                # If there's any other error reading the file, use a generic message
+                content = f"[File: {file_path}]"
+            
             changes.append(FileChange(
                 path=file_path,
                 status='untracked',
