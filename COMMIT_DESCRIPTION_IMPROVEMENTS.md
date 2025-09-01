@@ -101,7 +101,8 @@ Created comprehensive tests to verify the improvements:
 ## Results
 
 ### Before
-```
+
+```text
 feat(general): update code
 Files: web/src/pages/income.astro, web/src/pages/index.astro, web/src/pages/import.astro
 Body: Updated 3 files to improve overall project structure and functionality...
@@ -112,7 +113,8 @@ Body: Updated 2 files to enhance application functionality and improve code qual
 ```
 
 ### After
-```
+
+```text
 feat(web): update web pages
 Files: web/src/pages/income.astro, web/src/pages/index.astro, web/src/pages/import.astro
 Body: Updated 3 files to improve overall project structure and functionality...
@@ -133,6 +135,7 @@ Body: Updated 2 files to enhance application functionality and improve code qual
 ## Backward Compatibility
 
 All changes are backward compatible:
+
 - Existing functionality remains unchanged
 - AI-generated messages still work as before
 - Only fallback scenarios are improved

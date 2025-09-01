@@ -4,7 +4,7 @@
 
 The git-smart-commit tool was creating single large commits instead of properly batching separate units of work into separate commits. For example, when updating documentation for multiple features, it would create one commit like:
 
-```
+```text
 docs(documentation): update documentation
 Files: README.md, ai_instructions.md, current_status.md, project_history.md, suggestions.md, web/README.md, .kiro/specs/budget-management/design.md, .kiro/specs/budget-management/requirements.md, .kiro/specs/budget-management/tasks.md, .kiro/specs/business-expense-tracking/design.md, .kiro/specs/business-expense-tracking/requirements.md, .kiro/specs/business-expense-tracking/tasks.md, .kiro/specs/income-forecasting/design.md, .kiro/specs/income-forecasting/requirements.md, .kiro/specs/income-forecasting/tasks.md, .kiro/specs/transaction-data-ingestion/design.md, .kiro/specs/transaction-data-ingestion/requirements.md, .kiro/specs/transaction-data-ingestion/tasks.md, .kiro/specs/transaction-reconciliation/design.md, .kiro/specs/transaction-reconciliation/requirements.md, .kiro/specs/transaction-reconciliation/tasks.md, ai_context_guide.md
 ```
@@ -35,12 +35,14 @@ Improved the `RELATIONSHIP_PROMPT` to be more specific about grouping files into
 Added intelligent fallback grouping when the AI fails to create proper logical units:
 
 #### `_fallback_grouping()` Method
+
 - Groups files by patterns: main docs, web docs, feature specs, and other files
 - Handles root-level documentation files properly (distinguishes between `README.md` and `web/README.md`)
 - Groups feature specifications by feature name (e.g., all `.kiro/specs/budget-management/*` files together)
 - Creates separate groups for different features
 
 #### `_granular_fallback_grouping()` Method
+
 - Provides more granular grouping for complex directory structures
 - Groups files by directory structure (e.g., `src/auth/*` files together)
 - Handles edge cases and unknown file patterns

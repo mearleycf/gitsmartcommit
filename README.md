@@ -165,6 +165,7 @@ export HF_TOKEN="your-huggingface-token"
 ```
 
 You can also provide the API key via the `--api-key` flag, but this is not recommended as it may be visible in your shell history:
+
 ```bash
 git smart-commit --model gemini-pro --api-key "your-key"  # Not recommended
 ```
@@ -183,17 +184,18 @@ GitSmartCommit supports multiple AI models for generating commit messages and an
    - Models: claude-3-5-sonnet-latest, claude-3-5-haiku-latest
    - Requires: ANTHROPIC_API_KEY environment variable
 
-2. Google Gemini
+3. Google Gemini
    - Model: gemini-pro (automatically uses latest production version)
    - Requires: GEMINI_API_KEY or GOOGLE_API_KEY environment variable
 
-3. Qwen
+4. Qwen
    - Models: qwen2.5-coder:7b (and other Qwen models)
    - Options:
      - **HuggingFace**: Requires HF_TOKEN environment variable (HuggingFace API token)
      - **Ollama**: No API token required (runs locally via Ollama API)
 
 You can select a model using the `--model` flag or configuration file:
+
 ```bash
 # Use Qwen (default - Ollama)
 git smart-commit
