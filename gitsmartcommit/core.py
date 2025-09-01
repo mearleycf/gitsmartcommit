@@ -239,6 +239,12 @@ Files to analyze:
         else:
             grouping_result = result
         
+        # Check if the AI created proper logical grouping
+        # If all files are in one group, use fallback pattern-based grouping
+        if len(grouping_result.groups) == 1 and len(grouping_result.groups[0]) > 3:
+            print("Warning: AI grouped all files together. Using fallback pattern-based grouping...")
+            grouping_result = self._fallback_grouping(changes)
+        
         # Generate commit messages for each unit
         commit_units = []
         for group in grouping_result.groups:
@@ -268,6 +274,92 @@ Files to analyze:
             commit_units.append(commit_unit)
         
         return commit_units
+
+    def _fallback_grouping(self, changes: List[FileChange]) -> RelationshipResult:
+        """Fallback grouping based on file patterns when AI fails to create proper logical units."""
+        from pathlib import Path
+        
+        # Define grouping patterns
+        groups = {
+            "main_docs": [],
+            "web_docs": [],
+            "feature_specs": {},
+            "other": []
+        }
+        
+        for change in changes:
+            path = Path(change.path)
+            
+            # Group by patterns - check full path, not just filename
+            if str(path).startswith("web/"):
+                groups["web_docs"].append(change.path)
+            elif ".kiro/specs/" in str(path):
+                # Extract feature name from path
+                parts = str(path).split("/")
+                if len(parts) >= 3:
+                    feature_name = parts[2]  # e.g., "budget-management"
+                    if feature_name not in groups["feature_specs"]:
+                        groups["feature_specs"][feature_name] = []
+                    groups["feature_specs"][feature_name].append(change.path)
+                else:
+                    groups["other"].append(change.path)
+            elif len(path.parts) == 1 and path.suffix == ".md":
+                # Include all root-level markdown files in main_docs
+                groups["main_docs"].append(change.path)
+            else:
+                groups["other"].append(change.path)
+        
+        # Convert to RelationshipResult format
+        result_groups = []
+        
+        # Add main docs group if not empty
+        if groups["main_docs"]:
+            result_groups.append(groups["main_docs"])
+        
+        # Add web docs group if not empty
+        if groups["web_docs"]:
+            result_groups.append(groups["web_docs"])
+        
+        # Add feature spec groups
+        for feature_name, files in groups["feature_specs"].items():
+            if files:
+                result_groups.append(files)
+        
+        # Add other files group if not empty
+        if groups["other"]:
+            result_groups.append(groups["other"])
+        
+        # If we still have only one group, try more granular grouping
+        if len(result_groups) == 1 and len(result_groups[0]) > 5:
+            result_groups = self._granular_fallback_grouping(changes)
+        
+        return RelationshipResult(
+            groups=result_groups,
+            reasoning="Files grouped using fallback pattern-based logic due to AI grouping failure"
+        )
+    
+    def _granular_fallback_grouping(self, changes: List[FileChange]) -> List[List[str]]:
+        """More granular fallback grouping when basic patterns still result in large groups."""
+        from pathlib import Path
+        
+        # Group by directory structure
+        groups = {}
+        
+        for change in changes:
+            path = Path(change.path)
+            
+            # Get the directory structure as the group key
+            if len(path.parts) >= 2:
+                # Group by the first two directory levels (e.g., "src/auth", "tests/auth")
+                group_key = "/".join(path.parts[:2])
+            else:
+                group_key = "root"
+            
+            if group_key not in groups:
+                groups[group_key] = []
+            groups[group_key].append(change.path)
+        
+        return list(groups.values())
 
 class GitCommitter:
     """Handles git operations using the Command Pattern."""

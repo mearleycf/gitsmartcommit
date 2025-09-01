@@ -48,6 +48,8 @@ Key Requirements:
    - Use imperative mood ("add" not "added")
    - No period at end
    - Max 50 characters
+   - Be specific and descriptive (avoid generic terms like "update code", "fix stuff", etc.)
+   - Focus on the main purpose or feature being changed
 5. Message body must:
    - Explain the reasoning and context
    - Focus on WHY, not what
@@ -84,17 +86,16 @@ Please generate a high-quality commit message that follows these requirements ex
                 
                 # Parse the response to extract commit message components
                 lines = content.strip().split('\n')
-                subject_line = lines[0] if lines else "feat: update code"
+                subject_line = lines[0] if lines else ""
                 
                 # Extract type and scope from subject line
-                if '(' in subject_line and ')' in subject_line:
+                if '(' in subject_line and ')' in subject_line and '): ' in subject_line:
                     type_part = subject_line.split('(')[0].strip()
                     scope_part = subject_line.split('(')[1].split(')')[0].strip()
                     description_part = subject_line.split('): ')[1] if '): ' in subject_line else subject_line
                 else:
-                    type_part = "feat"
-                    scope_part = "general"
-                    description_part = subject_line
+                    # If parsing fails, analyze the changes to generate a better description
+                    type_part, scope_part, description_part = self._analyze_changes_for_description(changes)
                 
                 # Get body (everything after the first line)
                 body = '\n'.join(lines[1:]).strip() if len(lines) > 1 else ""
@@ -111,11 +112,12 @@ Please generate a high-quality commit message that follows these requirements ex
                     related_files=[change.path for change in changes]
                 )
         except Exception as e:
-            # Fallback to a simple commit message
+            # Fallback to a simple commit message with better analysis
+            commit_type, scope, description = self._analyze_changes_for_description(changes)
             return CommitMessageResult(
-                commit_type="feat",
-                scope="general",
-                description="update code",
+                commit_type=commit_type,
+                scope=scope,
+                description=description,
                 reasoning=self._generate_meaningful_reasoning(changes),
                 related_files=[change.path for change in changes]
             )
@@ -125,28 +127,8 @@ Please generate a high-quality commit message that follows these requirements ex
         # Analyze the changes to generate a meaningful message
         file_paths = [change.path for change in changes]
         
-        # Determine commit type based on file patterns
-        commit_type = "feat"
-        scope = "general"
-        description = "update code"
-        
-        # Look for patterns in file paths to determine the type of changes
-        if any("test" in path.lower() for path in file_paths):
-            commit_type = "test"
-            scope = "testing"
-            description = "add or update tests"
-        elif any("doc" in path.lower() or "readme" in path.lower() for path in file_paths):
-            commit_type = "docs"
-            scope = "documentation"
-            description = "update documentation"
-        elif any("config" in path.lower() or "toml" in path.lower() for path in file_paths):
-            commit_type = "chore"
-            scope = "config"
-            description = "update configuration"
-        elif any("factory" in path.lower() or "strategy" in path.lower() for path in file_paths):
-            commit_type = "feat"
-            scope = "ai-integration"
-            description = "add AI model integration"
+        # Determine commit type and scope based on file patterns and content
+        commit_type, scope, description = self._analyze_changes_for_description(changes)
         
         # Generate meaningful reasoning based on the changes
         if len(changes) == 1:
@@ -192,6 +174,123 @@ Please generate a high-quality commit message that follows these requirements ex
             reasoning=reasoning,
             related_files=file_paths
         )
+    
+    def _analyze_changes_for_description(self, changes: List[FileChange]) -> tuple[str, str, str]:
+        """Analyze file changes to generate specific commit type, scope, and description."""
+        file_paths = [change.path for change in changes]
+        
+        # Default values
+        commit_type = "feat"
+        scope = "general"
+        description = "update code"
+        
+        # Analyze file paths for patterns
+        path_lower = ' '.join(file_paths).lower()
+        
+        # Test files
+        if any("test" in path.lower() for path in file_paths):
+            commit_type = "test"
+            scope = "testing"
+            description = "add or update tests"
+        
+        # Documentation
+        elif any("doc" in path.lower() or "readme" in path.lower() or path.endswith('.md') for path in file_paths):
+            commit_type = "docs"
+            scope = "documentation"
+            if any("readme" in path.lower() for path in file_paths):
+                description = "update readme"
+            elif any("changelog" in path.lower() for path in file_paths):
+                description = "update changelog"
+            else:
+                description = "update documentation"
+        
+        # Configuration files
+        elif any("config" in path.lower() or path.endswith(('.toml', '.json', '.yaml', '.yml')) for path in file_paths):
+            commit_type = "chore"
+            scope = "config"
+            if any("pyproject" in path.lower() for path in file_paths):
+                description = "update project config"
+            elif any("pytest" in path.lower() for path in file_paths):
+                description = "update test config"
+            else:
+                description = "update configuration"
+        
+        # AI/ML related files
+        elif any("factory" in path.lower() or "strategy" in path.lower() or "prompt" in path.lower() for path in file_paths):
+            commit_type = "feat"
+            scope = "ai-integration"
+            description = "improve AI model integration"
+        
+        # Web/frontend files
+        elif any(path.startswith('web/') or path.endswith(('.astro', '.html', '.css', '.scss')) for path in file_paths):
+            commit_type = "feat"
+            scope = "web"
+            if any(path.endswith('.astro') for path in file_paths):
+                description = "update web pages"
+            elif any(path.endswith(('.css', '.scss')) for path in file_paths):
+                description = "update styles"
+            else:
+                description = "update web interface"
+        
+        # Backend/API files
+        elif any(path.startswith('backend/') or 'api' in path.lower() for path in file_paths):
+            commit_type = "feat"
+            scope = "api"
+            if any('service' in path.lower() for path in file_paths):
+                description = "update services"
+            elif any('api' in path.lower() for path in file_paths):
+                description = "update API endpoints"
+            else:
+                description = "update backend logic"
+        
+        # Database related
+        elif any('db' in path.lower() or 'database' in path.lower() or 'model' in path.lower() for path in file_paths):
+            commit_type = "feat"
+            scope = "database"
+            description = "update data models"
+        
+        # CLI/commands
+        elif any('cli' in path.lower() or 'command' in path.lower() for path in file_paths):
+            commit_type = "feat"
+            scope = "cli"
+            description = "update command interface"
+        
+        # Core functionality
+        elif any('core' in path.lower() or 'base' in path.lower() for path in file_paths):
+            commit_type = "feat"
+            scope = "core"
+            description = "update core functionality"
+        
+        # Specific feature analysis based on file content
+        else:
+            # Try to extract more specific information from file paths
+            for path in file_paths:
+                path_parts = Path(path).parts
+                
+                # Look for feature-specific directories
+                if len(path_parts) > 1:
+                    if 'income' in path_parts[1].lower():
+                        commit_type = "feat"
+                        scope = "income"
+                        description = "update income features"
+                        break
+                    elif 'import' in path_parts[1].lower():
+                        commit_type = "feat"
+                        scope = "import"
+                        description = "update import functionality"
+                        break
+                    elif 'transaction' in path_parts[1].lower():
+                        commit_type = "feat"
+                        scope = "transactions"
+                        description = "update transaction handling"
+                        break
+                    elif 'csv' in path_parts[1].lower():
+                        commit_type = "feat"
+                        scope = "csv"
+                        description = "update CSV processing"
+                        break
+        
+        return commit_type, scope, description
     
     def _generate_meaningful_reasoning(self, changes: List[FileChange]) -> str:
         """Generate meaningful reasoning for commit messages."""
@@ -265,6 +364,8 @@ Key Requirements:
    - Use imperative mood ("add" not "added")
    - No period at end
    - Max 50 characters
+   - Be specific and descriptive (avoid generic terms like "update code", "fix stuff", etc.)
+   - Focus on the main purpose or feature being changed
 5. Message body must:
    - Explain the reasoning and context
    - Focus on WHY, not what
@@ -317,7 +418,9 @@ Requirements:
 2. Explain the purpose of the changes
 3. Use present tense
 4. Keep subject line under 50 characters
-5. Add a brief body explaining the context if needed
+5. Be specific and descriptive (avoid generic terms like "update code", "fix stuff", etc.)
+6. Focus on the main purpose or feature being changed
+7. Add a brief body explaining the context if needed
 
 Please generate a clear commit message that follows these requirements."""
 
