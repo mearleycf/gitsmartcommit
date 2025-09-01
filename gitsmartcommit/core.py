@@ -8,6 +8,8 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext, Tool
+import os
+import re
 from .models import CommitType, FileChange, CommitUnit, RelationshipResult, CommitMessageResult
 from .commit_message import CommitMessageGenerator, CommitMessageStrategy
 from .observers import GitOperationObserver
@@ -45,42 +47,140 @@ class ChangeAnalyzer:
             raise ValueError("No changes detected in repository")
         return True
 
+    def _is_safe_path(self, path: str) -> bool:
+        """Check if a path is safe to process (no path traversal)."""
+        try:
+            # Resolve the path to check for path traversal
+            resolved_path = Path(self.repo_path).resolve()
+            file_path = (Path(self.repo_path) / path).resolve()
+            
+            # Ensure the file is within the repository
+            return str(file_path).startswith(str(resolved_path))
+        except (OSError, ValueError):
+            return False
+
+    def _sanitize_content(self, content: str, max_length: int = 1024 * 1024) -> str:
+        """Sanitize file content for security."""
+        if not content:
+            return ""
+        
+        # Remove null bytes and control characters
+        content = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', content)
+        
+        # Truncate if too long (prevent memory exhaustion)
+        if len(content) > max_length:
+            content = content[:max_length] + "\n... [content truncated]"
+        
+        return content
+
+    def _read_file_safely(self, file_path: Path) -> str:
+        """Read file content safely with security checks."""
+        try:
+            # Check if it's a symlink and resolve it safely
+            if file_path.is_symlink():
+                # For symlinks, we'll read the target content but mark it as symlink
+                target_path = file_path.resolve()
+                if not self._is_safe_path(str(target_path.relative_to(Path(self.repo_path)))):
+                    return "[symlink to external file - content not read]"
+                file_path = target_path
+            
+            # Check file size to prevent large file attacks
+            if file_path.stat().st_size > 10 * 1024 * 1024:  # 10MB limit
+                return "[file too large - content not read]"
+            
+            # Read content with encoding handling
+            with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+            
+            return self._sanitize_content(content)
+            
+        except (OSError, UnicodeDecodeError, ValueError) as e:
+            return f"[error reading file: {str(e)}]"
+
     def _collect_changes(self) -> List[FileChange]:
-        """Collect all changes in the repository."""
+        """Collect all changes in the repository with security and performance improvements."""
         changes = []
+        processed_staged = set()
+        processed_unstaged = set()
         
         # Get staged changes
-        diff_staged = self.repo.index.diff(self.repo.head.commit)
-        for diff in diff_staged:
-            content = diff.diff.decode('utf-8') if isinstance(diff.diff, bytes) else str(diff.diff)
-            changes.append(FileChange(
-                path=diff.a_path or diff.b_path,
-                status=diff.change_type,
-                content_diff=content,
-                is_staged=True
-            ))
+        try:
+            diff_staged = self.repo.index.diff(self.repo.head.commit)
+            for diff in diff_staged:
+                file_path = diff.a_path or diff.b_path
+                if not file_path or not self._is_safe_path(file_path):
+                    continue
+                
+                processed_staged.add(file_path)
+                
+                content = ""
+                if diff.diff:
+                    content = diff.diff.decode('utf-8', errors='replace') if isinstance(diff.diff, bytes) else str(diff.diff)
+                    content = self._sanitize_content(content)
+                
+                changes.append(FileChange(
+                    path=file_path,
+                    status=diff.change_type,
+                    content_diff=content,
+                    is_staged=True
+                ))
+        except Exception as e:
+            # Handle git errors gracefully
+            print(f"Warning: Error reading staged changes: {e}")
         
         # Get unstaged changes
-        diff_unstaged = self.repo.index.diff(None)
-        for diff in diff_unstaged:
-            content = diff.diff.decode('utf-8') if isinstance(diff.diff, bytes) else str(diff.diff)
-            changes.append(FileChange(
-                path=diff.a_path or diff.b_path,
-                status=diff.change_type,
-                content_diff=content,
-                is_staged=False
-            ))
+        try:
+            diff_unstaged = self.repo.index.diff(None)
+            for diff in diff_unstaged:
+                file_path = diff.a_path or diff.b_path
+                if not file_path or not self._is_safe_path(file_path):
+                    continue
+                
+                processed_unstaged.add(file_path)
+                
+                content = ""
+                if diff.diff:
+                    content = diff.diff.decode('utf-8', errors='replace') if isinstance(diff.diff, bytes) else str(diff.diff)
+                    content = self._sanitize_content(content)
+                
+                changes.append(FileChange(
+                    path=file_path,
+                    status=diff.change_type,
+                    content_diff=content,
+                    is_staged=False
+                ))
+        except Exception as e:
+            # Handle git errors gracefully
+            print(f"Warning: Error reading unstaged changes: {e}")
         
-        # Get untracked files
-        for file_path in self.repo.untracked_files:
-            with open(Path(self.repo.working_dir) / file_path, 'r') as f:
-                content = f.read()
-            changes.append(FileChange(
-                path=file_path,
-                status='untracked',
-                content_diff=content,
-                is_staged=False
-            ))
+        # Get untracked files (but not symlinks to external files)
+        try:
+            for file_path in self.repo.untracked_files:
+                if not self._is_safe_path(file_path):
+                    continue
+                
+                if file_path in processed_staged or file_path in processed_unstaged:
+                    continue
+                
+                full_path = Path(self.repo.working_dir) / file_path
+                
+                # Skip if it's a symlink to external file
+                if full_path.is_symlink():
+                    target_path = full_path.resolve()
+                    if not self._is_safe_path(str(target_path.relative_to(Path(self.repo_path)))):
+                        continue
+                
+                content = self._read_file_safely(full_path)
+                
+                changes.append(FileChange(
+                    path=file_path,
+                    status='untracked',
+                    content_diff=content,
+                    is_staged=False
+                ))
+        except Exception as e:
+            # Handle git errors gracefully
+            print(f"Warning: Error reading untracked files: {e}")
         
         return changes
 

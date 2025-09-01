@@ -45,8 +45,8 @@ async def test_large_repository_performance():
             file_path = dir_path / f"file_{i}.txt"
             file_path.write_text(f"Content for file {i}")
         
-        # Add all files to git
-        repo.index.add(["."])
+        # Add all files to git properly
+        repo.git.add(".")
         repo.index.commit("Add large number of files")
         
         setup_time = time.time() - start_time
@@ -121,7 +121,7 @@ async def test_memory_usage_performance(performance_repo):
     
     # Add to git
     repo = Repo(performance_repo)
-    repo.index.add(["."])
+    repo.git.add(".")
     repo.index.commit("Add many files")
     
     # Modify some files
@@ -155,7 +155,7 @@ async def test_concurrent_analysis_performance(performance_repo):
         file_path.write_text(f"Content {i}")
     
     repo = Repo(performance_repo)
-    repo.index.add(["."])
+    repo.git.add(".")
     repo.index.commit("Add test files")
     
     # Modify some files
@@ -245,7 +245,7 @@ async def test_stress_test_many_small_changes(performance_repo):
         changes = analyzer._collect_changes()
         
         # Commit changes
-        repo.index.add(["."])
+        repo.git.add(".")
         repo.index.commit(f"Iteration {iteration}")
     
     total_time = time.time() - start_time
@@ -265,7 +265,7 @@ async def test_performance_with_binary_files(performance_repo):
         file_path.write_bytes(binary_data)
     
     repo = Repo(performance_repo)
-    repo.index.add(["."])
+    repo.git.add(".")
     repo.index.commit("Add binary files")
     
     # Modify some binary files
@@ -302,7 +302,7 @@ async def test_performance_with_deep_directory_structure(performance_repo):
         file_path.write_text(f"Content at level {d}")
     
     repo = Repo(performance_repo)
-    repo.index.add(["."])
+    repo.git.add(".")
     repo.index.commit("Add deep structure")
     
     # Modify files at different levels
@@ -431,7 +431,7 @@ async def test_performance_with_complex_git_history(performance_repo):
             repo.index.commit(f"Branch commit {i}")
             
             # Switch back to main and merge
-            repo.head.reference = repo.heads.master
+            repo.head.reference = repo.heads.main
             repo.git.merge(branch_name)
     
     # Modify some files

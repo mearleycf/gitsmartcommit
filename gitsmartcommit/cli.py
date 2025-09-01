@@ -207,7 +207,7 @@ def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_pu
             committer.add_observer(ConsoleLogObserver(console))
             
             # Set up logging based on configuration
-            log_file_path = config.get_log_file()
+            log_file_path = log_file or config.get_log_file()
             if log_file_path:
                 committer.add_observer(FileLogObserver(str(log_file_path)))
             
