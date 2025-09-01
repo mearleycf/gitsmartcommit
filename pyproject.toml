@@ -34,6 +34,7 @@ test = [
 
 [project.scripts]
 git-smart-commit = "gitsmartcommit.cli:main"
+git-smart = "gitsmartcommit.cli:main"
 
 [build-system]
 requires = ["hatchling"]
