@@ -106,7 +106,10 @@ def get_agent_factory(model: str, api_key: Optional[str] = None):
               help='AI model to use (e.g. claude-3-5-sonnet-latest, gemini-pro, qwen2.5-coder:7b, ollama:qwen2.5-coder:7b)')
 @click.option('--api-key', envvar=['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'ANTHROPIC_API_KEY', 'QWEN_API_KEY', 'HF_TOKEN'],
               help='API key for the selected model. Can also be set via environment variables: GEMINI_API_KEY, GOOGLE_API_KEY, ANTHROPIC_API_KEY, QWEN_API_KEY, or HF_TOKEN. Not needed for Ollama models.')
-def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_push: bool, merge: bool, main_branch: str, commit_style: str, log_file: Optional[Path], simple: bool, model: str, api_key: Optional[str]):
+@click.option('--version', is_flag=True, help='Display version information and exit')
+@click.option('--check-updates', is_flag=True, help='Check for available updates')
+@click.option('--verify-install', is_flag=True, help='Verify installation integrity')
+def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_push: bool, merge: bool, main_branch: str, commit_style: str, log_file: Optional[Path], simple: bool, model: str, api_key: Optional[str], version: bool, check_updates: bool, verify_install: bool):
     """
     Intelligent Git commit tool that analyzes changes and creates meaningful commits.
     
@@ -121,6 +124,22 @@ def main(config_list: bool, config_dir: bool, path: Path, dry_run: bool, auto_pu
     Command line options override configuration file settings.
     """
     try:
+        # Handle version management commands first
+        if version:
+            from .version import display_version_info
+            display_version_info()
+            return
+        
+        if check_updates:
+            from .version import check_updates_and_display
+            check_updates_and_display()
+            return
+        
+        if verify_install:
+            from .version import verify_and_display
+            verify_and_display()
+            return
+        
         repo_path = path.absolute()
         
         if config_list:

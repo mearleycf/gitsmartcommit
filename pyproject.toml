@@ -1,6 +1,6 @@
 [project]
 name = "gitsmartcommit"
-version = "0.1.0"
+version = "0.1.1"
 description = "AI-enhanced Git commit tool that intelligently analyzes and groups changes"
 authors = [
     { name = "Mike Earley" }
@@ -19,6 +19,7 @@ dependencies = [
     "qwen>=0.0.1",  # For Qwen model support
     "httpx>=0.24.0",  # For Ollama API integration
     "nest-asyncio>=1.5.0",  # For nested event loops in tests
+    "packaging>=21.0",  # For version comparison
 ]
 requires-python = ">=3.9"
 readme = "README.md"
@@ -40,7 +41,7 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = [

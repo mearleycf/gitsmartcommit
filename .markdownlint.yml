@@ -1,0 +1,6 @@
+# Markdownlint configuration file
+default: true
+MD024: false
+MD013: false
+MD047: false
+MD036: false
