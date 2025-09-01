@@ -203,6 +203,7 @@ pip install -e .
 ```
 
 **If the above doesn't work, try clearing Python cache:**
+
 ```bash
 # From the gitsmartcommit directory
 find . -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
