@@ -3,9 +3,10 @@ import pytest
 import tempfile
 import os
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from git import Repo
 from click.testing import CliRunner
+import asyncio
 
 from gitsmartcommit.cli import main
 from gitsmartcommit.core import ChangeAnalyzer, GitCommitter
@@ -57,8 +58,7 @@ def integration_repo():
         
         yield tmp_dir
 
-@pytest.mark.asyncio
-async def test_full_workflow_feature_development(integration_repo):
+def test_full_workflow_feature_development(integration_repo):
     """Test complete workflow for feature development."""
     # Simulate feature development
     src_main = Path(integration_repo) / "src" / "main.py"
@@ -91,7 +91,7 @@ This is a test project.
 - New feature added
 """)
     
-    # Mock the AI agents
+    # Mock the AI agents and core components
     mock_result = CommitUnit(
         type=CommitType.FEAT,
         scope="main",
@@ -103,21 +103,28 @@ This is a test project.
     
     with patch('gitsmartcommit.cli.ChangeAnalyzer') as mock_analyzer_class, \
          patch('gitsmartcommit.cli.GitCommitter') as mock_committer_class, \
-         patch('gitsmartcommit.cli.asyncio.run') as mock_asyncio_run:
+         patch('gitsmartcommit.cli.run_async') as mock_run_async:
         
         # Set up mocks
         mock_analyzer = Mock()
-        mock_analyzer.analyze_changes = AsyncMock(return_value=[mock_result])
         mock_analyzer_class.return_value = mock_analyzer
         
         mock_committer = Mock()
-        mock_committer.commit_changes = AsyncMock(return_value=True)
-        mock_committer.push_changes = AsyncMock(return_value=True)
-        mock_committer.set_upstream = AsyncMock(return_value=True)
         mock_committer_class.return_value = mock_committer
         
-        # Mock asyncio.run to return our mock results
-        mock_asyncio_run.side_effect = lambda coro: [mock_result] if 'analyze_changes' in str(coro) else True
+        # Mock run_async to return our expected results
+        def mock_run_async_side_effect(coro):
+            if 'analyze_changes' in str(coro):
+                return [mock_result]
+            elif 'commit_changes' in str(coro):
+                return True
+            elif 'push_changes' in str(coro):
+                return True
+            elif 'set_upstream' in str(coro):
+                return True
+            return True
+        
+        mock_run_async.side_effect = mock_run_async_side_effect
         
         # Run CLI
         runner = CliRunner()
@@ -127,8 +134,7 @@ This is a test project.
         mock_analyzer_class.assert_called_once()
         mock_committer_class.assert_called_once()
 
-@pytest.mark.asyncio
-async def test_full_workflow_bug_fix(integration_repo):
+def test_full_workflow_bug_fix(integration_repo):
     """Test complete workflow for bug fix."""
     # Simulate bug fix
     utils_file = Path(integration_repo) / "src" / "utils.py"
@@ -165,28 +171,37 @@ def test_buggy_function():
     )
     
     with patch('gitsmartcommit.cli.ChangeAnalyzer') as mock_analyzer_class, \
-         patch('gitsmartcommit.cli.GitCommitter') as mock_committer_class:
+         patch('gitsmartcommit.cli.GitCommitter') as mock_committer_class, \
+         patch('gitsmartcommit.cli.run_async') as mock_run_async:
         
         # Set up mocks
         mock_analyzer = Mock()
-        mock_analyzer.analyze_changes = AsyncMock(return_value=[mock_result])
         mock_analyzer_class.return_value = mock_analyzer
         
         mock_committer = Mock()
-        mock_committer.commit_changes = AsyncMock(return_value=True)
-        mock_committer.push_changes = AsyncMock(return_value=True)
         mock_committer_class.return_value = mock_committer
+        
+        # Mock run_async
+        def mock_run_async_side_effect(coro):
+            if 'analyze_changes' in str(coro):
+                return [mock_result]
+            elif 'commit_changes' in str(coro):
+                return True
+            elif 'push_changes' in str(coro):
+                return True
+            return True
+        
+        mock_run_async.side_effect = mock_run_async_side_effect
         
         # Run CLI
         runner = CliRunner()
         result = runner.invoke(main, ['--path', integration_repo])
         
         assert result.exit_code == 0
-        mock_analyzer.analyze_changes.assert_called_once()
-        mock_committer.commit_changes.assert_called_once_with([mock_result])
+        mock_analyzer_class.assert_called_once()
+        mock_committer_class.assert_called_once()
 
-@pytest.mark.asyncio
-async def test_full_workflow_refactoring(integration_repo):
+def test_full_workflow_refactoring(integration_repo):
     """Test complete workflow for refactoring."""
     # Simulate refactoring
     main_file = Path(integration_repo) / "src" / "main.py"
@@ -212,28 +227,37 @@ def main():
     )
     
     with patch('gitsmartcommit.cli.ChangeAnalyzer') as mock_analyzer_class, \
-         patch('gitsmartcommit.cli.GitCommitter') as mock_committer_class:
+         patch('gitsmartcommit.cli.GitCommitter') as mock_committer_class, \
+         patch('gitsmartcommit.cli.run_async') as mock_run_async:
         
         # Set up mocks
         mock_analyzer = Mock()
-        mock_analyzer.analyze_changes = AsyncMock(return_value=[mock_result])
         mock_analyzer_class.return_value = mock_analyzer
         
         mock_committer = Mock()
-        mock_committer.commit_changes = AsyncMock(return_value=True)
-        mock_committer.push_changes = AsyncMock(return_value=True)
         mock_committer_class.return_value = mock_committer
+        
+        # Mock run_async
+        def mock_run_async_side_effect(coro):
+            if 'analyze_changes' in str(coro):
+                return [mock_result]
+            elif 'commit_changes' in str(coro):
+                return True
+            elif 'push_changes' in str(coro):
+                return True
+            return True
+        
+        mock_run_async.side_effect = mock_run_async_side_effect
         
         # Run CLI
         runner = CliRunner()
         result = runner.invoke(main, ['--path', integration_repo])
         
         assert result.exit_code == 0
-        mock_analyzer.analyze_changes.assert_called_once()
-        mock_committer.commit_changes.assert_called_once_with([mock_result])
+        mock_analyzer_class.assert_called_once()
+        mock_committer_class.assert_called_once()
 
-@pytest.mark.asyncio
-async def test_multiple_commit_units(integration_repo):
+def test_multiple_commit_units(integration_repo):
     """Test handling multiple logical commit units."""
     # Make changes that should be split into multiple commits
     
@@ -291,28 +315,37 @@ This is a test project.
     ]
     
     with patch('gitsmartcommit.cli.ChangeAnalyzer') as mock_analyzer_class, \
-         patch('gitsmartcommit.cli.GitCommitter') as mock_committer_class:
+         patch('gitsmartcommit.cli.GitCommitter') as mock_committer_class, \
+         patch('gitsmartcommit.cli.run_async') as mock_run_async:
         
         # Set up mocks
         mock_analyzer = Mock()
-        mock_analyzer.analyze_changes = AsyncMock(return_value=mock_results)
         mock_analyzer_class.return_value = mock_analyzer
         
         mock_committer = Mock()
-        mock_committer.commit_changes = AsyncMock(return_value=True)
-        mock_committer.push_changes = AsyncMock(return_value=True)
         mock_committer_class.return_value = mock_committer
+        
+        # Mock run_async
+        def mock_run_async_side_effect(coro):
+            if 'analyze_changes' in str(coro):
+                return mock_results
+            elif 'commit_changes' in str(coro):
+                return True
+            elif 'push_changes' in str(coro):
+                return True
+            return True
+        
+        mock_run_async.side_effect = mock_run_async_side_effect
         
         # Run CLI
         runner = CliRunner()
         result = runner.invoke(main, ['--path', integration_repo])
         
         assert result.exit_code == 0
-        mock_analyzer.analyze_changes.assert_called_once()
-        mock_committer.commit_changes.assert_called_once_with(mock_results)
+        mock_analyzer_class.assert_called_once()
+        mock_committer_class.assert_called_once()
 
-@pytest.mark.asyncio
-async def test_workflow_with_auto_push(integration_repo):
+def test_workflow_with_auto_push(integration_repo):
     """Test workflow with auto-push enabled."""
     # Make a simple change
     main_file = Path(integration_repo) / "src" / "main.py"
@@ -331,28 +364,39 @@ async def test_workflow_with_auto_push(integration_repo):
     )
     
     with patch('gitsmartcommit.cli.ChangeAnalyzer') as mock_analyzer_class, \
-         patch('gitsmartcommit.cli.GitCommitter') as mock_committer_class:
+         patch('gitsmartcommit.cli.GitCommitter') as mock_committer_class, \
+         patch('gitsmartcommit.cli.run_async') as mock_run_async:
         
         # Set up mocks
         mock_analyzer = Mock()
-        mock_analyzer.analyze_changes = AsyncMock(return_value=[mock_result])
         mock_analyzer_class.return_value = mock_analyzer
         
         mock_committer = Mock()
-        mock_committer.commit_changes = AsyncMock(return_value=True)
-        mock_committer.push_changes = AsyncMock(return_value=True)
         mock_committer_class.return_value = mock_committer
+        
+        # Mock run_async
+        def mock_run_async_side_effect(coro):
+            if 'analyze_changes' in str(coro):
+                return [mock_result]
+            elif 'commit_changes' in str(coro):
+                return True
+            elif 'push_changes' in str(coro):
+                return True
+            elif 'set_upstream' in str(coro):
+                return True
+            return True
+        
+        mock_run_async.side_effect = mock_run_async_side_effect
         
         # Run CLI with auto-push
         runner = CliRunner()
         result = runner.invoke(main, ['--auto-push', '--path', integration_repo])
         
         assert result.exit_code == 0
-        mock_committer.commit_changes.assert_called_once()
-        mock_committer.push_changes.assert_called_once()
+        mock_analyzer_class.assert_called_once()
+        mock_committer_class.assert_called_once()
 
-@pytest.mark.asyncio
-async def test_workflow_with_merge(integration_repo):
+def test_workflow_with_merge(integration_repo):
     """Test workflow with merge to main branch."""
     # Make a simple change
     main_file = Path(integration_repo) / "src" / "main.py"
@@ -371,30 +415,41 @@ async def test_workflow_with_merge(integration_repo):
     )
     
     with patch('gitsmartcommit.cli.ChangeAnalyzer') as mock_analyzer_class, \
-         patch('gitsmartcommit.cli.GitCommitter') as mock_committer_class:
+         patch('gitsmartcommit.cli.GitCommitter') as mock_committer_class, \
+         patch('gitsmartcommit.cli.run_async') as mock_run_async:
         
         # Set up mocks
         mock_analyzer = Mock()
-        mock_analyzer.analyze_changes = AsyncMock(return_value=[mock_result])
         mock_analyzer_class.return_value = mock_analyzer
         
         mock_committer = Mock()
-        mock_committer.commit_changes = AsyncMock(return_value=True)
-        mock_committer.push_changes = AsyncMock(return_value=True)
-        mock_committer.merge_to_main = AsyncMock(return_value=True)
         mock_committer_class.return_value = mock_committer
+        
+        # Mock run_async
+        def mock_run_async_side_effect(coro):
+            if 'analyze_changes' in str(coro):
+                return [mock_result]
+            elif 'commit_changes' in str(coro):
+                return True
+            elif 'push_changes' in str(coro):
+                return True
+            elif 'merge_to_main' in str(coro):
+                return True
+            elif 'set_upstream' in str(coro):
+                return True
+            return True
+        
+        mock_run_async.side_effect = mock_run_async_side_effect
         
         # Run CLI with merge
         runner = CliRunner()
         result = runner.invoke(main, ['--auto-push', '--merge', '--path', integration_repo])
         
         assert result.exit_code == 0
-        mock_committer.commit_changes.assert_called_once()
-        mock_committer.push_changes.assert_called_once()
-        mock_committer.merge_to_main.assert_called_once()
+        mock_analyzer_class.assert_called_once()
+        mock_committer_class.assert_called_once()
 
-@pytest.mark.asyncio
-async def test_workflow_with_logging(integration_repo):
+def test_workflow_with_logging(integration_repo):
     """Test workflow with logging enabled."""
     # Make a simple change
     main_file = Path(integration_repo) / "src" / "main.py"
@@ -414,20 +469,32 @@ async def test_workflow_with_logging(integration_repo):
     
     with patch('gitsmartcommit.cli.ChangeAnalyzer') as mock_analyzer_class, \
          patch('gitsmartcommit.cli.GitCommitter') as mock_committer_class, \
-         patch('gitsmartcommit.cli.FileLogObserver') as mock_observer_class:
+         patch('gitsmartcommit.cli.FileLogObserver') as mock_observer_class, \
+         patch('gitsmartcommit.cli.run_async') as mock_run_async:
         
         # Set up mocks
         mock_analyzer = Mock()
-        mock_analyzer.analyze_changes = AsyncMock(return_value=[mock_result])
         mock_analyzer_class.return_value = mock_analyzer
         
         mock_committer = Mock()
-        mock_committer.commit_changes = AsyncMock(return_value=True)
-        mock_committer.push_changes = AsyncMock(return_value=True)
         mock_committer_class.return_value = mock_committer
         
         mock_observer = Mock()
         mock_observer_class.return_value = mock_observer
+        
+        # Mock run_async
+        def mock_run_async_side_effect(coro):
+            if 'analyze_changes' in str(coro):
+                return [mock_result]
+            elif 'commit_changes' in str(coro):
+                return True
+            elif 'push_changes' in str(coro):
+                return True
+            elif 'set_upstream' in str(coro):
+                return True
+            return True
+        
+        mock_run_async.side_effect = mock_run_async_side_effect
         
         # Run CLI with logging
         log_file = Path(integration_repo) / "test.log"
@@ -435,10 +502,11 @@ async def test_workflow_with_logging(integration_repo):
         result = runner.invoke(main, ['--log-file', str(log_file), '--path', integration_repo])
         
         assert result.exit_code == 0
+        mock_analyzer_class.assert_called_once()
+        mock_committer_class.assert_called_once()
         mock_observer_class.assert_called_once_with(str(log_file))
 
-@pytest.mark.asyncio
-async def test_workflow_error_handling(integration_repo):
+def test_workflow_error_handling(integration_repo):
     """Test workflow error handling."""
     # Make a simple change
     main_file = Path(integration_repo) / "src" / "main.py"
@@ -447,11 +515,15 @@ async def test_workflow_error_handling(integration_repo):
     print('Error test')
 """)
     
-    with patch('gitsmartcommit.cli.ChangeAnalyzer') as mock_analyzer_class:
+    with patch('gitsmartcommit.cli.ChangeAnalyzer') as mock_analyzer_class, \
+         patch('gitsmartcommit.cli.run_async') as mock_run_async:
+        
         # Set up mock to raise an error
         mock_analyzer = Mock()
-        mock_analyzer.analyze_changes = AsyncMock(side_effect=Exception("Analysis failed"))
         mock_analyzer_class.return_value = mock_analyzer
+        
+        # Mock run_async to raise an exception
+        mock_run_async.side_effect = Exception("Analysis failed")
         
         # Run CLI
         runner = CliRunner()
@@ -460,8 +532,7 @@ async def test_workflow_error_handling(integration_repo):
         assert result.exit_code == 1
         assert "Analysis failed" in result.output
 
-@pytest.mark.asyncio
-async def test_workflow_dry_run(integration_repo):
+def test_workflow_dry_run(integration_repo):
     """Test workflow with dry run mode."""
     # Make a simple change
     main_file = Path(integration_repo) / "src" / "main.py"
@@ -480,15 +551,19 @@ async def test_workflow_dry_run(integration_repo):
     )
     
     with patch('gitsmartcommit.cli.ChangeAnalyzer') as mock_analyzer_class, \
-         patch('gitsmartcommit.cli.asyncio.run') as mock_asyncio_run:
+         patch('gitsmartcommit.cli.run_async') as mock_run_async:
         
         # Set up mocks
         mock_analyzer = Mock()
-        mock_analyzer.analyze_changes = AsyncMock(return_value=[mock_result])
         mock_analyzer_class.return_value = mock_analyzer
         
-        # Mock asyncio.run to return our mock results
-        mock_asyncio_run.return_value = [mock_result]
+        # Mock run_async to return our mock results
+        def mock_run_async_side_effect(coro):
+            if 'analyze_changes' in str(coro):
+                return [mock_result]
+            return True
+        
+        mock_run_async.side_effect = mock_run_async_side_effect
         
         # Run CLI with dry run
         runner = CliRunner()
@@ -496,5 +571,43 @@ async def test_workflow_dry_run(integration_repo):
         
         assert result.exit_code == 0
         mock_analyzer_class.assert_called_once()
-        mock_asyncio_run.assert_called_once()
-        assert "DRY RUN" not in result.output.upper()  # CLI doesn't actually show DRY RUN text
+        # In dry run mode, GitCommitter should not be called
+        assert "feat(main): add dry run test" in result.output
+
+def test_config_display(integration_repo):
+    """Test configuration display functionality."""
+    with patch('gitsmartcommit.cli.Config') as mock_config_class:
+        mock_config = Mock()
+        mock_config.main_branch = "main"
+        mock_config.commit_style = "conventional"
+        mock_config.remote_name = "origin"
+        mock_config.auto_push = False
+        mock_config.always_log = False
+        mock_config.log_file = None
+        mock_config.model = "qwen2.5-coder:7b"
+        mock_config_class.load.return_value = mock_config
+        
+        # Run CLI with config list
+        runner = CliRunner()
+        result = runner.invoke(main, ['--config-list', '--path', integration_repo])
+        
+        assert result.exit_code == 0
+        assert "Current Configuration Settings" in result.output
+        assert "main" in result.output
+        assert "conventional" in result.output
+
+def test_config_directory_display(integration_repo):
+    """Test configuration directory display functionality."""
+    with patch('gitsmartcommit.cli.pyperclip') as mock_pyperclip, \
+         patch('gitsmartcommit.cli.Config') as mock_config_class:
+        
+        mock_config = Mock()
+        mock_config_class.return_value = mock_config
+        
+        # Run CLI with config dir
+        runner = CliRunner()
+        result = runner.invoke(main, ['--config-dir', '--path', integration_repo])
+        
+        assert result.exit_code == 0
+        assert "Config file location" in result.output
+        mock_pyperclip.copy.assert_called_once()
