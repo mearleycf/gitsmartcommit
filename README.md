@@ -13,45 +13,78 @@ A smart Git commit assistant that helps you create better commits by analyzing y
 
 ## Installation
 
-Currently, GitSmartCommit needs to be installed from source:
+GitSmartCommit can be installed globally so you can use it from any repository without reinstalling.
+
+### Quick Global Installation
 
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/gitsmartcommit.git
 cd gitsmartcommit
 
-# Create a virtual environment (optional but recommended)
-python -m venv venv
+# Install globally (recommended)
+python3 scripts/install_global.py
+```
 
-# Activate the virtual environment:
-# For bash/zsh:
-source venv/bin/activate
-# For fish:
-source venv/bin/activate.fish
-# For Windows Command Prompt:
-venv\Scripts\activate.bat
-# For Windows PowerShell:
-venv\Scripts\Activate.ps1
+This will install `git-smart-commit` and the short alias `git-smart` in your PATH.
 
-# Note: Make sure to activate the virtual environment before running the command
+### Manual Installation
 
-# Install the package in editable mode with development dependencies
-pip install -e ".[dev]"
+If you prefer to install manually:
 
-# For global installation (recommended for regular use):
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/gitsmartcommit.git
+cd gitsmartcommit
+
+# Install globally (recommended for regular use)
 python3 -m pip install -e . --user
+
+# Or install in a virtual environment for development
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -e ".[test]"
+```
+
+### Updating
+
+To update your global installation with the latest changes:
+
+```bash
+cd gitsmartcommit
+python3 scripts/update_global.py
+```
+
+Or use the quick update scripts:
+
+```bash
+# For bash/zsh
+./update.sh
+
+# For fish shell
+./update.fish
+```
+
+Or manually:
+
+```bash
+python3 -m pip install -e . --user --force-reinstall
 ```
 
 ## Usage
 
-After installation, you can use the `git-smart-commit` command in any git repository:
+After installation, you can use the `git-smart-commit` command (or the short alias `git-smart`) in any git repository:
 
 ```bash
 # Basic usage (analyzes current directory)
 git-smart-commit
+# or
+git-smart
 
 # Get help and see all available options
 git-smart-commit --help
+# or
+git-smart --help
 ```
 
 ### Options
