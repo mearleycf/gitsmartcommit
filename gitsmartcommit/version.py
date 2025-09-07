@@ -23,7 +23,21 @@ def get_current_version() -> str:
 def get_installed_version() -> str:
     """Get the installed version from pip metadata."""
     try:
-        return importlib.metadata.version("gitsmartcommit")
+        # First try to get version from pip metadata
+        pip_version = importlib.metadata.version("gitsmartcommit")
+        
+        # For editable installations, check if the source version is newer
+        try:
+            import gitsmartcommit
+            source_version = gitsmartcommit.__version__
+            
+            # If source version is different, use it (editable install)
+            if source_version != pip_version:
+                return source_version
+        except (ImportError, AttributeError):
+            pass
+        
+        return pip_version
     except importlib.metadata.PackageNotFoundError:
         return "unknown"
 

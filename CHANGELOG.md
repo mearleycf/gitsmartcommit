@@ -12,6 +12,25 @@
 - 
 
 
+## [0.1.3] - 2025-01-22
+
+### Fixed
+- **Version detection for editable installations**: Fixed issue where `--version` command showed version mismatch between current and installed versions for editable installations
+- **Improved version checking logic**: Now properly detects source version for editable installs instead of relying solely on pip metadata
+
+### Breaking Changes
+-
+
+### Added
+- 
+
+### Changed
+- 
+
+### Fixed
+- 
+
+
 ## [0.1.2] - 2025-01-22
 
 ### Added

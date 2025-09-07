@@ -1,6 +1,6 @@
 [project]
 name = "gitsmartcommit"
-version = "0.1.2"
+version = "0.1.3"
 description = "AI-enhanced Git commit tool that intelligently analyzes and groups changes"
 authors = [
     { name = "Mike Earley" }
@@ -42,7 +42,7 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 88
-target-version = "0.1.2"
+target-version = "0.1.3"
 
 [tool.ruff.lint]
 select = [
