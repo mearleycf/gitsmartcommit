@@ -19,6 +19,11 @@ always_log = false
 # Example: log_file = "git-operations.log"
 log_file = ""
 
+# Directory to store timestamped log files (relative to repository root)
+# Default: None (logs created in repository root)
+# Example: log_directory = "logs"
+log_directory = ""
+
 # AI model to use (default: "claude-3-5-sonnet-latest")
 # Options: "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "gemini-pro", "qwen2.5-coder:7b", "ollama:qwen2.5-coder:7b"
 model = "claude-3-5-sonnet-latest" 

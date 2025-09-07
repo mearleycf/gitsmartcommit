@@ -168,12 +168,15 @@ always_log = true
 # Custom log file path (ignored if always_log is true)
 log_file = "git-operations.log"
 
+# Directory to store timestamped log files (relative to repository root)
+log_directory = "logs"
+
 # AI model to use (default: "claude-3-5-sonnet-latest")
 # Options: "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "gemini-pro", "qwen2.5-coder:7b"
 model = "claude-3-5-sonnet-latest"
 ```
 
-When `always_log` is enabled, log files are automatically generated with names in the format `gsc_log-YYYY-MM-DD_HH-mm-ss.log`.
+When `always_log` is enabled, log files are automatically generated with names in the format `gsc_log-YYYY-MM-DD_HH-mm-ss.log`. If `log_directory` is specified, these timestamped log files will be created in that directory instead of the repository root.
 
 Command line options take precedence over configuration file settings. For example, if `auto_push = false` in the config file but you use the `-a` flag, changes will be pushed.
 

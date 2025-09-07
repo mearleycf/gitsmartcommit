@@ -3,6 +3,33 @@
 ## [Unreleased]
 
 ### Added
+- 
+
+### Changed
+- 
+
+### Fixed
+- 
+
+
+## [0.1.2] - 2025-01-22
+
+### Added
+- **New `log_directory` configuration option**: Specify a custom directory for timestamped log files while keeping the same filename format (`gsc_log-YYYY-MM-DD_HH-MM-SS.log`)
+- Environment variable support for `GIT_SMART_COMMIT_LOG_DIRECTORY`
+- Comprehensive tests for the new log directory functionality
+
+### Changed
+- Enhanced `get_log_file()` method to support custom log directories for timestamped files
+- Updated configuration validation to include log directory path safety checks
+
+### Fixed
+- Improved path validation and security for log file and directory configurations
+
+### Breaking Changes
+-
+
+### Added
 
 -
 

@@ -47,11 +47,16 @@ class Config(BaseModel):
         description="Path to log file (if not using automatic log file generation)"
     )
 
+    log_directory: Optional[str] = Field(
+        default=None,
+        description="Directory to store timestamped log files (relative to repo root)"
+    )
+
     model: str = Field(
         default="qwen2.5-coder:7b",
-        description="AI model to use for generating commit messages (e.g., claude-3-5-sonnet-latest, gemini-pro, qwen2.5-coder:7b)"
+        description="AI model to use for generating commit messages"
     )
-    
+
     def _sanitize_string(self, value: str) -> str:
         """Sanitize string values to prevent injection attacks."""
         if not value:
@@ -118,16 +123,25 @@ class Config(BaseModel):
                 config_section = config_data['gitsmartcommit']
                 
                 # Sanitize string values
-                for key in ['main_branch', 'commit_style', 'remote_name', 'log_file', 'model']:
+                string_keys = ['main_branch', 'commit_style', 'remote_name', 'log_file', 'log_directory', 'model']
+                for key in string_keys:
                     if key in config_section and isinstance(config_section[key], str):
                         config_section[key] = cls._sanitize_string(config_section[key])
                 
                 # Validate log_file path
                 if 'log_file' in config_section and config_section['log_file']:
                     if not cls._is_safe_path(config_section['log_file']):
-                        print(f"Warning: Unsafe log file path '{config_section['log_file']}', using default")
+                        msg = f"Warning: Unsafe log file path '{config_section['log_file']}', using default"
+                        print(msg)
                         config_section['log_file'] = None
-            
+                
+                # Validate log_directory path
+                if 'log_directory' in config_section and config_section['log_directory']:
+                    if not cls._is_safe_path(config_section['log_directory']):
+                        msg = f"Warning: Unsafe log directory path '{config_section['log_directory']}', using default"
+                        print(msg)
+                        config_section['log_directory'] = None
+
             return cls(**config_data)
         except Exception as e:
             # If there's any error reading the config, use defaults
@@ -149,9 +163,16 @@ class Config(BaseModel):
             # Validate paths before saving
             if 'log_file' in config_dict and config_dict['log_file']:
                 if not self._is_safe_path(config_dict['log_file']):
-                    print(f"Warning: Unsafe log file path '{config_dict['log_file']}', not saving")
+                    msg = f"Warning: Unsafe log file path '{config_dict['log_file']}', not saving"
+                    print(msg)
                     config_dict['log_file'] = None
             
+            if 'log_directory' in config_dict and config_dict['log_directory']:
+                if not self._is_safe_path(config_dict['log_directory']):
+                    msg = f"Warning: Unsafe log directory path '{config_dict['log_directory']}', not saving"
+                    print(msg)
+                    config_dict['log_directory'] = None
+
             with config_path.open('wb') as f:
                 tomli_w.dump(config_dict, f)
         except Exception as e:
@@ -161,6 +182,7 @@ class Config(BaseModel):
         """Get the path to the log file.
         
         If always_log is True, generates a timestamped log file name.
+        If log_directory is set, the timestamped file will be created in that directory.
         Otherwise, returns the configured log_file path if set.
         
         Returns:
@@ -168,13 +190,25 @@ class Config(BaseModel):
         """
         if self.always_log:
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            return Path(f"gsc_log-{timestamp}.log")
+            filename = f"gsc_log-{timestamp}.log"
+            
+            if self.log_directory:
+                # Validate the log directory path
+                if self._is_safe_path(self.log_directory):
+                    return Path(self.log_directory) / filename
+                else:
+                    msg = f"Warning: Unsafe log directory path '{self.log_directory}', using repository root"
+                    print(msg)
+                    return Path(filename)
+            else:
+                return Path(filename)
         elif self.log_file:
             # Validate the log file path
             if self._is_safe_path(self.log_file):
                 return Path(self.log_file)
             else:
-                print(f"Warning: Unsafe log file path '{self.log_file}', using default")
+                msg = f"Warning: Unsafe log file path '{self.log_file}', using default"
+                print(msg)
                 return None
         return None
 
@@ -191,6 +225,7 @@ class Config(BaseModel):
             'GIT_SMART_COMMIT_AUTO_PUSH': 'auto_push',
             'GIT_SMART_COMMIT_ALWAYS_LOG': 'always_log',
             'GIT_SMART_COMMIT_LOG_FILE': 'log_file',
+            'GIT_SMART_COMMIT_LOG_DIRECTORY': 'log_directory',
             'GIT_SMART_COMMIT_MODEL': 'model'
         }
         
@@ -199,7 +234,8 @@ class Config(BaseModel):
                 value = os.environ[env_var]
                 
                 # Sanitize string values
-                if field_name in ['main_branch', 'commit_style', 'remote_name', 'log_file', 'model']:
+                string_fields = ['main_branch', 'commit_style', 'remote_name', 'log_file', 'log_directory', 'model']
+                if field_name in string_fields:
                     value = self._sanitize_string(value)
                 
                 # Convert boolean values

@@ -1,7 +1,6 @@
 """Tests for configuration functionality."""
 import pytest
 from pathlib import Path
-import tomli_w
 from datetime import datetime
 
 from gitsmartcommit.config import Config
@@ -82,4 +81,43 @@ def test_get_log_file_always():
     try:
         datetime.strptime(timestamp_str, "%Y-%m-%d_%H-%M-%S")
     except ValueError:
-        pytest.fail("Invalid timestamp format in log filename") 
+        pytest.fail("Invalid timestamp format in log filename")
+
+def test_get_log_file_with_directory():
+    """Test get_log_file with log_directory specified."""
+    config = Config(always_log=True, log_directory="logs")
+    log_file = config.get_log_file()
+    
+    assert log_file is not None
+    assert log_file.parent == Path("logs")
+    assert log_file.name.startswith("gsc_log-")
+    assert log_file.suffix == ".log"
+
+    # Verify timestamp format
+    timestamp_str = log_file.stem.split("-", 1)[1]
+    try:
+        datetime.strptime(timestamp_str, "%Y-%m-%d_%H-%M-%S")
+    except ValueError:
+        pytest.fail("Invalid timestamp format in log filename")
+
+def test_get_log_file_unsafe_directory():
+    """Test get_log_file with unsafe log_directory path."""
+    config = Config(always_log=True, log_directory="../etc")
+    log_file = config.get_log_file()
+    
+    # Should fall back to repository root due to unsafe path
+    assert log_file is not None
+    assert log_file.parent == Path(".")
+    assert log_file.name.startswith("gsc_log-")
+    assert log_file.suffix == ".log"
+
+def test_log_directory_environment_variable(monkeypatch):
+    """Test log_directory from environment variable."""
+    monkeypatch.setenv("GIT_SMART_COMMIT_LOG_DIRECTORY", "env_logs")
+    config = Config(always_log=True)
+    log_file = config.get_log_file()
+    
+    assert log_file is not None
+    assert log_file.parent == Path("env_logs")
+    assert log_file.name.startswith("gsc_log-")
+    assert log_file.suffix == ".log" 
