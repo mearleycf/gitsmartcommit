@@ -12,6 +12,32 @@
 - 
 
 
+## [0.2.0] - 2025-01-22
+
+### Added
+- `--no-verify` CLI option to bypass pre-commit hooks when creating commits
+- Support for multi-line commit messages when using `--no-verify` flag
+- Comprehensive tests for the new `--no-verify` functionality
+
+### Changed
+- 
+
+### Fixed
+- 
+
+### Breaking Changes
+-
+
+### Added
+- 
+
+### Changed
+- 
+
+### Fixed
+- 
+
+
 ## [0.1.3] - 2025-01-22
 
 ### Fixed
