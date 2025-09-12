@@ -364,11 +364,12 @@ Files to analyze:
 class GitCommitter:
     """Handles git operations using the Command Pattern."""
     
-    def __init__(self, repo_path: str):
+    def __init__(self, repo_path: str, no_verify: bool = False):
         self.repo = Repo(repo_path)
         self.console = Console()
         self.observers: List[GitOperationObserver] = []
         self.command_history: List[GitCommand] = []
+        self.no_verify = no_verify
     
     def add_observer(self, observer: GitOperationObserver) -> None:
         """Add an observer to be notified of git operations."""
@@ -422,7 +423,7 @@ class GitCommitter:
             
             success = True
             for unit in commit_units:
-                command = CommitCommand(self.repo, unit, self.console)
+                command = CommitCommand(self.repo, unit, self.console, no_verify=self.no_verify)
                 if not await self.execute_command(command):
                     success = False
                     break
