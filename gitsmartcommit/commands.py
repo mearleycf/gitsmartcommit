@@ -21,6 +21,8 @@ Example:
     ```
 """
 
+import os
+import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List, Optional
@@ -249,7 +251,11 @@ class CommitCommand(GitCommand):
     """
 
     def __init__(
-        self, repo: Repo, commit_unit: CommitUnit, console: Optional[Console] = None, no_verify: bool = False
+        self,
+        repo: Repo,
+        commit_unit: CommitUnit,
+        console: Optional[Console] = None,
+        no_verify: bool = False,
     ):
         """Initialize the commit command.
 
@@ -301,9 +307,21 @@ class CommitCommand(GitCommand):
             # Create commit
             if self.no_verify:
                 # Use git command directly to bypass pre-commit hooks
-                commit = self.repo.git.commit("-m", message, "--no-verify")
-                # Get the commit hash from the last commit
-                self.commit_hash = self.repo.head.commit.hexsha
+                # Properly handle multi-line messages by using the -F flag with a temporary file
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.commitmsg') as f:
+                    f.write(message)
+                    temp_file = f.name
+
+                try:
+                    commit = self.repo.git.commit("-F", temp_file, "--no-verify")
+                    # Get the commit hash from the last commit
+                    self.commit_hash = self.repo.head.commit.hexsha
+                finally:
+                    # Clean up the temporary file
+                    try:
+                        os.unlink(temp_file)
+                    except OSError:
+                        pass
             else:
                 # Use the standard index.commit method
                 commit = self.repo.index.commit(message)
