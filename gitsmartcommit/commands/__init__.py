@@ -1,7 +1,10 @@
 """Git operation commands using the Command Pattern.
 
-This module provides backward compatibility imports for the componentized command structure.
-All command classes are now organized in separate modules within the commands package.
+This package implements the Command Pattern for git operations, allowing for:
+1. Encapsulation of git operations as objects
+2. Support for undo operations
+3. Command history tracking
+4. Integration with the Observer Pattern for notifications
 
 Example:
     ```python
@@ -21,16 +24,12 @@ Example:
     ```
 """
 
-# Import all command classes from the componentized modules
-from .commands import (
-    CommitCommand,
-    GitCommand,
-    MergeCommand,
-    PushCommand,
-    SetUpstreamCommand,
-)
+from .base import GitCommand
+from .commit import CommitCommand
+from .merge import MergeCommand
+from .push import PushCommand
+from .upstream import SetUpstreamCommand
 
-# Re-export for backward compatibility
 __all__ = [
     "GitCommand",
     "CommitCommand",
