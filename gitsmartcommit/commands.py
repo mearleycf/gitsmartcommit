@@ -158,7 +158,10 @@ class SetUpstreamCommand(GitCommand):
                 self.console.print(
                     f"[yellow]  This is normal for new branches. Upstream will be set when you first push.[/yellow]"
                 )
-                # Don't try to set upstream now - let PushCommand handle it
+                # For new branches, we'll set upstream during the first push
+                # Store this information for the PushCommand to use
+                self.had_upstream = False
+                self.previous_upstream = None
                 return True
 
             # Set the upstream
@@ -283,18 +286,52 @@ class CommitCommand(GitCommand):
             bool: True if the commit was created successfully, False otherwise
         """
         try:
+            # Check if there are any changes to commit first
+            if not self.repo.is_dirty() and not self.repo.untracked_files:
+                self.console.print("[yellow]No changes to commit, skipping...[/yellow]")
+                return True
+
             # Stage files for this commit
+            staged_files = []
             for file_path in self.commit_unit.files:
                 file_exists = Path(self.repo.working_dir) / file_path
                 if file_exists.exists():
-                    self.repo.index.add([file_path])
+                    # Check if file is already staged
+                    try:
+                        # Get the diff to see if there are actual changes
+                        diff = self.repo.index.diff(
+                            self.repo.head.commit, paths=[file_path]
+                        )
+                        if diff or file_path in self.repo.untracked_files:
+                            self.repo.index.add([file_path])
+                            staged_files.append(file_path)
+                    except Exception:
+                        # If there's an error checking diff, try to stage anyway
+                        self.repo.index.add([file_path])
+                        staged_files.append(file_path)
                 else:
                     # Handle deleted files
                     try:
                         self.repo.index.remove([file_path])
+                        staged_files.append(file_path)
                     except:
                         # If the file is already staged for deletion, continue
                         pass
+
+            # Check if we actually staged anything
+            if not staged_files:
+                self.console.print(
+                    f"[yellow]No changes to stage for commit unit: {self.commit_unit.description}[/yellow]"
+                )
+                return True
+
+            # Double-check that we have staged changes before committing
+            staged_diff = self.repo.index.diff(self.repo.head.commit)
+            if not staged_diff and not self.repo.untracked_files:
+                self.console.print(
+                    "[yellow]No staged changes to commit, skipping...[/yellow]"
+                )
+                return True
 
             # Create commit message
             message = f"{self.commit_unit.type.value}"
@@ -308,7 +345,9 @@ class CommitCommand(GitCommand):
             if self.no_verify:
                 # Use git command directly to bypass pre-commit hooks
                 # Properly handle multi-line messages by using the -F flag with a temporary file
-                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.commitmsg') as f:
+                with tempfile.NamedTemporaryFile(
+                    mode="w", delete=False, suffix=".commitmsg"
+                ) as f:
                     f.write(message)
                     temp_file = f.name
 

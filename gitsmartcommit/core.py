@@ -284,12 +284,30 @@ Files to analyze:
             grouping_result = result
 
         # Check if the AI created proper logical grouping
-        # If all files are in one group, use fallback pattern-based grouping
-        if len(grouping_result.groups) == 1 and len(grouping_result.groups[0]) > 3:
-            print(
-                "Warning: AI grouped all files together. Using fallback pattern-based grouping..."
-            )
-            grouping_result = self._fallback_grouping(changes)
+        # Only use fallback if AI truly failed to create meaningful groups
+        total_files = len(changes)
+        if len(grouping_result.groups) == 1 and total_files > 5:
+            # Check if the single group makes sense by analyzing file diversity
+            single_group = grouping_result.groups[0]
+            file_types = set()
+            directories = set()
+
+            for file_path in single_group:
+                path = Path(file_path)
+                file_types.add(path.suffix.lower())
+                if len(path.parts) > 1:
+                    directories.add(path.parts[0])
+
+            # If we have diverse file types and directories, AI grouping might be wrong
+            if len(file_types) > 3 or len(directories) > 2:
+                print(
+                    "Warning: AI grouped diverse files together. Using fallback pattern-based grouping..."
+                )
+                grouping_result = self._fallback_grouping(changes)
+            else:
+                print(
+                    f"Info: AI grouped {total_files} related files together (likely correct)"
+                )
 
         # Generate commit messages for each unit
         commit_units = []
