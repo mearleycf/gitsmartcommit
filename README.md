@@ -75,6 +75,10 @@ python3 -m pip install -e . --user --force-reinstall
 
 After installation, you can use the `git-smart-commit` command (or the short alias `git-smart`) in any git repository:
 
+![GitSmartCommit in action](example_screenshot.png)
+
+_Example: GitSmartCommit analyzing changes and creating a commit with conventional commit message format_
+
 ```bash
 # Basic usage (analyzes current directory)
 git-smart-commit
