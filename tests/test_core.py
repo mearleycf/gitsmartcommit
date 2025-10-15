@@ -258,6 +258,34 @@ async def test_file_log_observer(temp_git_repo, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_file_log_observer_creates_directory(temp_git_repo, tmp_path):
+    """Test that FileLogObserver creates parent directories if they don't exist."""
+    # Create a log file in a non-existent directory
+    log_file = tmp_path / "nonexistent_dir" / "git.log"
+    observer = FileLogObserver(str(log_file))
+
+    # Verify the directory was created
+    assert log_file.parent.exists()
+    assert log_file.parent.name == "nonexistent_dir"
+
+    # Create a test commit unit
+    commit_unit = CommitUnit(
+        type=CommitType.FEAT,
+        scope="test",
+        description="test commit",
+        files=["test.txt"],
+        body="Test commit body",
+        message="feat(test): test commit",
+    )
+
+    # Test logging commit
+    await observer.on_commit_created(commit_unit)
+    assert log_file.exists()
+    content = log_file.read_text()
+    assert "Created commit: feat(test): test commit" in content
+
+
+@pytest.mark.asyncio
 async def test_simple_commit_strategy(temp_git_repo):
     # Create test changes
     test_file = Path(temp_git_repo) / "test.txt"

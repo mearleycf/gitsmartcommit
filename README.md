@@ -179,6 +179,7 @@ always_log = true
 log_file = "git-operations.log"
 
 # Directory to store timestamped log files (relative to repository root)
+# Default: ".gitsmartcommit"
 log_directory = "logs"
 
 # AI model to use (default: "claude-3-5-sonnet-latest")
@@ -186,7 +187,7 @@ log_directory = "logs"
 model = "claude-3-5-sonnet-latest"
 ```
 
-When `always_log` is enabled, log files are automatically generated with names in the format `gsc_log-YYYY-MM-DD_HH-mm-ss.log`. If `log_directory` is specified, these timestamped log files will be created in that directory instead of the repository root.
+When `always_log` is enabled, log files are automatically generated with names in the format `gsc_log-YYYY-MM-DD_HH-mm-ss.log`. By default, these files are created in the `.gitsmartcommit` directory (which will be created automatically if it doesn't exist). If `log_directory` is specified, these timestamped log files will be created in that directory instead.
 
 Command line options take precedence over configuration file settings. For example, if `auto_push = false` in the config file but you use the `-a` flag, changes will be pushed.
 
