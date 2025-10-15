@@ -131,6 +131,11 @@ def get_agent_factory(model: str, api_key: Optional[str] = None):
     is_flag=True,
     help="Skip pre-commit hooks when creating commits",
 )
+@click.option(
+    "--no-auto-stage",
+    is_flag=True,
+    help="Don't automatically stage all changes before analysis (default: auto-stage)",
+)
 def main(
     config_list: bool,
     config_dir: bool,
@@ -148,6 +153,7 @@ def main(
     check_updates: bool,
     verify_install: bool,
     no_verify: bool,
+    no_auto_stage: bool,
 ):
     """
     Intelligent Git commit tool that analyzes changes and creates meaningful commits.
@@ -280,7 +286,9 @@ def main(
         factory = get_agent_factory(config.model, api_key)
 
         # Initialize analyzer with the factory
-        analyzer = ChangeAnalyzer(str(repo_path), factory=factory)
+        analyzer = ChangeAnalyzer(
+            str(repo_path), factory=factory, auto_stage=not no_auto_stage
+        )
 
         # Select commit strategy based on configuration
         strategy = (

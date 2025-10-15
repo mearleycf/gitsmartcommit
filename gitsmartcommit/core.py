@@ -47,10 +47,12 @@ class ChangeAnalyzer:
         repo_path: str,
         factory: Optional[AgentFactory] = None,
         commit_strategy: Optional[CommitMessageStrategy] = None,
+        auto_stage: bool = True,
     ):
         """Initialize the analyzer with a Git repository."""
         self.repo = Repo(repo_path)
         self.repo_path = repo_path
+        self.auto_stage = auto_stage
 
         # Use provided factory or default to Claude
         self.agent_factory = factory or ClaudeAgentFactory()
@@ -68,6 +70,15 @@ class ChangeAnalyzer:
         if not self.repo.is_dirty() and not self.repo.untracked_files:
             raise ValueError("No changes detected in repository")
         return True
+
+    def _auto_stage_changes(self) -> None:
+        """Automatically stage all changes in the repository (equivalent to 'git add .')."""
+        try:
+            # Stage all changes (unstaged and untracked files)
+            self.repo.git.add(".")
+        except Exception as e:
+            # If there's an error, continue - some files might not be stageable
+            print(f"Warning: Error auto-staging changes: {e}")
 
     def _is_safe_path(self, path: str) -> bool:
         """Check if a path is safe to process (no path traversal)."""
@@ -227,6 +238,10 @@ class ChangeAnalyzer:
     async def analyze_changes(self) -> List[CommitUnit]:
         """Analyze the changes in the repository and suggest commit units."""
         self._validate_repo()
+
+        # Automatically stage all changes before analysis (equivalent to 'git add .')
+        if self.auto_stage:
+            self._auto_stage_changes()
 
         # Collect all changes
         changes = self._collect_changes()

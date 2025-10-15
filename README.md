@@ -4,6 +4,7 @@ A smart Git commit assistant that helps you create better commits by analyzing y
 
 ## Features
 
+- Automatically stages all changes before analysis (equivalent to `git add .`)
 - Analyzes repository changes and groups them into logical units
 - Generates conventional commit messages
 - Supports multiple commit message formats
@@ -100,6 +101,7 @@ git-smart --help
 - `--main-branch TEXT`: Name of the main branch to merge into (defaults to 'main')
 - `-c, --commit-style [conventional|simple]`: Style of commit messages to generate
 - `-l, --log-file FILE`: Optional file to log git operations
+- `--no-auto-stage`: Don't automatically stage all changes before analysis (default: auto-stage)
 
 ## Examples
 
@@ -124,15 +126,19 @@ git-smart-commit -c simple
 
 # Log operations to a file
 git-smart-commit -l git-operations.log
+
+# Don't automatically stage all changes (only analyze already staged changes)
+git-smart-commit --no-auto-stage
 ```
 
 The tool will:
 
-1. Analyze your repository changes
-2. Group related changes into logical commits
-3. Generate meaningful commit messages
-4. Create the commits (unless --dry-run is used)
-5. Optionally push changes to remote (if --auto-push is used)
+1. Automatically stage all changes (equivalent to `git add .`) before analysis
+2. Analyze your repository changes
+3. Group related changes into logical commits
+4. Generate meaningful commit messages
+5. Create the commits (unless --dry-run is used)
+6. Optionally push changes to remote (if --auto-push is used)
 
 ## Architecture
 
